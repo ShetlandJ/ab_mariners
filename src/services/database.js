@@ -1,16 +1,12 @@
 const Database = require('better-sqlite3');
 const path = require('path');
-const electron = require('electron');
 const importPersons = require('../seeders/importPersons');
 const importShips = require('../seeders/importShips');
 const importPersonShips = require('../seeders/importPersonShips');
 
 class DatabaseService {
     constructor() {
-        // Store database in project root
         const dbPath = path.join(__dirname, '../../database.sqlite');
-        console.log('Database path:', dbPath);
-        
         this.db = new Database(dbPath, { 
             verbose: console.log,
             fileMustExist: false
@@ -83,12 +79,10 @@ class DatabaseService {
     }
 
     dropTables() {
-        console.log('Dropping all tables...');
         this.db.exec(`DROP TABLE IF EXISTS person`);
         this.db.exec(`DROP TABLE IF EXISTS ship`);
         this.db.exec(`DROP TABLE IF EXISTS examples`);
         this.db.exec(`DROP TABLE IF EXISTS person_ship`);
-        console.log('Tables dropped');
     }
 
     // Example query method
@@ -103,16 +97,13 @@ class DatabaseService {
 
     disableForeignKeys() {
         this.db.exec('PRAGMA foreign_keys = OFF;');
-        console.log('Foreign key checks disabled');
     }
 
     enableForeignKeys() {
         this.db.exec('PRAGMA foreign_keys = ON;');
-        console.log('Foreign key checks enabled');
     }
 
     async seed(fresh = true) {
-        console.log('Starting database seed...');
         this.disableForeignKeys();
         
         if (fresh) {
@@ -125,7 +116,6 @@ class DatabaseService {
         await importPersonShips(this.db);
         
         this.enableForeignKeys();
-        console.log('Database seeding completed');
     }
 }
 
