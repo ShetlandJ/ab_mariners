@@ -55,7 +55,7 @@ import { ref, onMounted, watch } from 'vue';
 import { usePagination } from '../composables/usePagination';
 import database from '../services/database';
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 10;
 
 export default {
   name: 'MarinersView',

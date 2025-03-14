@@ -35,6 +35,7 @@ const skipTitleCase = [
 const columnMapping = {
     'year of birth': 'year_of_birth',
     'year of death': 'year_of_death',
+    'place of birth': 'place_of_birth'
     // Add other mappings if needed
 };
 
