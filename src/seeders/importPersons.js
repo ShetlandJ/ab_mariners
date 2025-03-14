@@ -52,7 +52,7 @@ const dateFields = [
     'appdate1', 'entdate1', 'appdate2', 'entdate2', 'appdate3', 'entdate3'
 ];
 
-async function importPersons(db) {
+async function importPersons(db, useTransaction = true) {
     console.log("Starting person import process...");
 
     try {
@@ -77,8 +77,7 @@ async function importPersons(db) {
         console.log('First row sample:', rows[0]);
 
         // Start transaction
-        console.log('Starting transaction...');
-        db.prepare('BEGIN TRANSACTION').run();
+        if (useTransaction) db.prepare('BEGIN TRANSACTION').run();
 
         // Clear existing data
         console.log('Clearing existing data...');
@@ -187,8 +186,7 @@ async function importPersons(db) {
         });
 
         // Commit transaction
-        console.log('Committing transaction...');
-        db.prepare('COMMIT').run();
+        if (useTransaction) db.prepare('COMMIT').run();
 
         // Final count verification
         const finalCount = db.prepare('SELECT COUNT(*) as count FROM person').get();
@@ -200,8 +198,10 @@ async function importPersons(db) {
 
     } catch (err) {
         console.error('\nImport failed with error:', err.message);
-        console.log('Rolling back changes...');
-        db.prepare('ROLLBACK').run();
+        if (useTransaction) {
+            console.log('Rolling back changes...');
+            db.prepare('ROLLBACK').run();
+        }
         throw err;
     }
 }

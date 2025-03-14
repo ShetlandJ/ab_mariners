@@ -9,7 +9,7 @@ function toTitleCase(str) {
         .join(' ');
 }
 
-module.exports = function importShips(db) {
+function importShips(db, useTransaction = true) {
     console.log("\nStarting ship import process...");
 
     try {
@@ -26,7 +26,7 @@ module.exports = function importShips(db) {
         const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
         console.log(`Ship Excel file read successfully. Found ${rows.length} rows.`);
 
-        db.prepare('BEGIN TRANSACTION').run();
+        if (useTransaction) db.prepare('BEGIN TRANSACTION').run();
 
         const insert = db.prepare(`
             INSERT INTO ship (shipID, name, designation, freetext)
@@ -59,7 +59,7 @@ module.exports = function importShips(db) {
             }
         });
 
-        db.prepare('COMMIT').run();
+        if (useTransaction) db.prepare('COMMIT').run();
 
         const finalCount = db.prepare('SELECT COUNT(*) as count FROM ship').get();
         console.log('\nShip Import Summary:');
@@ -70,8 +70,14 @@ module.exports = function importShips(db) {
 
     } catch (err) {
         console.error('\nShip import failed with error:', err.message);
-        console.log('Rolling back changes...');
-        db.prepare('ROLLBACK').run();
+        if (useTransaction) {
+            console.log('Rolling back changes...');
+            db.prepare('ROLLBACK').run();
+        }
         throw err;
     }
+}
+
+module.exports = {
+    importShips
 };

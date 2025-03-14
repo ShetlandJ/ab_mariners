@@ -40,6 +40,72 @@ let db;
 function setupDatabase() {
   const dbPath = path.join(app.getPath('userData'), 'database.sqlite');
   db = new Database(dbPath, { verbose: console.log });
+  
+  // Initialize tables if they don't exist
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS person (
+      person_id INTEGER PRIMARY KEY,
+      surname TEXT,
+      forename TEXT,
+      alias1surname TEXT,
+      alias1forename TEXT,
+      alias2surname TEXT,
+      alias2forename TEXT,
+      year_of_birth INTEGER,
+      year_of_death INTEGER,
+      place_of_birth TEXT,
+      remittence TEXT,
+      allotment TEXT,
+      effects TEXT,
+      grenpen TEXT,
+      freetext TEXT,
+      cod TEXT,
+      appdate1 DATE,
+      entdate1 DATE,
+      ship1 TEXT,
+      where1 TEXT,
+      prest1 TEXT,
+      appdate2 DATE,
+      entdate2 DATE,
+      ship2 TEXT,
+      where2 TEXT,
+      prest2 TEXT,
+      appdate3 DATE,
+      entdate3 DATE,
+      ship3 TEXT,
+      where3 TEXT,
+      prest3 TEXT,
+      shiplist TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS ship (
+      shipID INTEGER PRIMARY KEY,
+      name TEXT,
+      designation TEXT,
+      freetext TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS person_ship (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      person_id INTEGER,
+      ship_id INTEGER,
+      rank TEXT,
+      start_date DATE,
+      end_date DATE
+    );
+  `);
+
+  // Only add test data if table is completely empty
+  const count = db.prepare('SELECT COUNT(*) as count FROM person').get().count;
+  if (count === 0) {
+    console.log('Database is empty, adding test data...');
+    db.prepare(`
+      INSERT INTO person (surname, forename, year_of_birth, place_of_birth)
+      VALUES (?, ?, ?, ?)
+    `).run('Smith', 'John', 1820, 'London');
+  } else {
+    console.log(`Database already contains ${count} records, skipping initialization`);
+  }
 }
 
 app.whenReady().then(() => {
