@@ -13,7 +13,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
-          <tr v-for="mariner in mariners" :key="mariner.person_id">
+          <tr v-for="mariner in mariners.mariners" :key="mariner.person_id">
             <td>{{ mariner.surname }}, {{ mariner.forename }}</td>
             <td>{{ mariner.year_of_birth || '-' }}</td>
             <td>{{ mariner.year_of_death || '-' }}</td>

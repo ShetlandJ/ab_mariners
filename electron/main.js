@@ -1,115 +1,103 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const sqlite3 = require('sqlite3');
+const { open } = require('sqlite');
 const { enableHMR } = require('./dev-config');
-const Database = require('better-sqlite3');
 require('@electron/remote/main').initialize();
 
+let mainWindow;
+let db;
+
+async function initDatabase() {
+  try {
+    // Open the database
+    db = await open({
+      filename: path.join(__dirname, '../database.sqlite'),
+      driver: sqlite3.Database
+    });
+    
+    console.log('Database connected successfully');
+  } catch (error) {
+    console.error('Database connection error:', error);
+  }
+}
+
 function createWindow() {
-  const win = new BrowserWindow({
+  // Make sure we're using the correct path for preload.js
+  const preloadPath = path.join(__dirname, 'preload.js');
+  console.log('Preload path:', preloadPath);
+  
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     webPreferences: {
-      nodeIntegration: false,
+      preload: preloadPath,
       contextIsolation: true,
-      enableRemoteModule: true,
-      preload: path.join(__dirname, 'preload.js')
+      nodeIntegration: false
     }
   });
 
-  require('@electron/remote/main').enable(win.webContents);
-
-  const server = {
-    host: 'localhost',
-    port: 5173,
-  };
-
-  win.loadURL(
-    process.env.NODE_ENV === 'development' 
-      ? `http://${server.host}:${server.port}`
-      : `file://${path.join(__dirname, '../dist/index.html')}`
-  );
-
-  if (process.env.NODE_ENV === 'development') {
-    win.webContents.openDevTools();
-  }
-}
-
-// Database setup
-let db;
-
-function setupDatabase() {
-  const dbPath = path.join(app.getPath('userData'), 'database.sqlite');
-  db = new Database(dbPath, { verbose: console.log });
-  
-  // Initialize tables if they don't exist
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS person (
-      person_id INTEGER PRIMARY KEY,
-      surname TEXT,
-      forename TEXT,
-      alias1surname TEXT,
-      alias1forename TEXT,
-      alias2surname TEXT,
-      alias2forename TEXT,
-      year_of_birth INTEGER,
-      year_of_death INTEGER,
-      place_of_birth TEXT,
-      remittence TEXT,
-      allotment TEXT,
-      effects TEXT,
-      grenpen TEXT,
-      freetext TEXT,
-      cod TEXT,
-      appdate1 DATE,
-      entdate1 DATE,
-      ship1 TEXT,
-      where1 TEXT,
-      prest1 TEXT,
-      appdate2 DATE,
-      entdate2 DATE,
-      ship2 TEXT,
-      where2 TEXT,
-      prest2 TEXT,
-      appdate3 DATE,
-      entdate3 DATE,
-      ship3 TEXT,
-      where3 TEXT,
-      prest3 TEXT,
-      shiplist TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS ship (
-      shipID INTEGER PRIMARY KEY,
-      name TEXT,
-      designation TEXT,
-      freetext TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS person_ship (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      person_id INTEGER,
-      ship_id INTEGER,
-      rank TEXT,
-      start_date DATE,
-      end_date DATE
-    );
-  `);
-
-  // Only add test data if table is completely empty
-  const count = db.prepare('SELECT COUNT(*) as count FROM person').get().count;
-  if (count === 0) {
-    console.log('Database is empty, adding test data...');
-    db.prepare(`
-      INSERT INTO person (surname, forename, year_of_birth, place_of_birth)
-      VALUES (?, ?, ?, ?)
-    `).run('Smith', 'John', 1820, 'London');
+  // Load your app - use loadFile for production and loadURL for development
+  const isDev = process.env.NODE_ENV === 'development';
+  if (isDev) {
+    console.log('Loading development URL: http://localhost:5173');
+    mainWindow.loadURL('http://localhost:5173');
+    // Open DevTools in development
+    mainWindow.webContents.openDevTools();
   } else {
-    console.log(`Database already contains ${count} records, skipping initialization`);
+    const indexPath = path.join(__dirname, '../dist/index.html');
+    console.log('Loading production file:', indexPath);
+    mainWindow.loadFile(indexPath);
   }
+  
+  // Log when the page has finished loading
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('Window loaded successfully');
+  });
+
+  // Log any load errors
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Failed to load:', errorCode, errorDescription);
+  });
 }
 
-app.whenReady().then(() => {
-  setupDatabase();
+// Set up IPC handlers for database operations
+function setupIpcHandlers() {
+  // Match the handler names with what's in the preload script
+  ipcMain.handle('get-mariners-count', async () => {
+    try {
+      const result = await db.get('SELECT COUNT(*) as count FROM person');
+      console.log('Mariners count:', result);
+      return result.count;
+    } catch (error) {
+      console.error('Error counting mariners:', error);
+      return 0;
+    }
+  });
+
+  ipcMain.handle('get-mariners-paginated', async (event, page, limit) => {
+    try {
+      const offset = (page - 1) * limit;
+      const mariners = await db.all(
+        'SELECT * FROM person LIMIT ? OFFSET ?', 
+        [limit, offset]
+      );
+      const countResult = await db.get('SELECT COUNT(*) as total FROM person');
+      
+      return {
+        mariners,
+        total: countResult.total
+      };
+    } catch (error) {
+      console.error('Error fetching mariners:', error);
+      return { mariners: [], total: 0 };
+    }
+  });
+}
+
+app.whenReady().then(async () => {
+  await initDatabase();
+  setupIpcHandlers();
   createWindow();
 
   app.on('activate', function () {
@@ -121,27 +109,12 @@ app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// IPC Handlers
-ipcMain.handle('db:getMarinersCount', () => {
-  return db.prepare('SELECT COUNT(*) as count FROM person').get().count;
-});
-
-ipcMain.handle('db:getMarinersPaginated', (event, page = 1, limit = 20) => {
-  const offset = (page - 1) * limit;
-  return db.prepare(`
-    SELECT person_id, surname, forename, year_of_birth, year_of_death, place_of_birth 
-    FROM person 
-    ORDER BY surname, forename 
-    LIMIT ? OFFSET ?
-  `).all(limit, offset);
-});
-
-ipcMain.handle('get-database-path', () => {
-  return path.join(app.getPath('userData'), 'database.sqlite');
-});
-
-ipcMain.on('get-database-path', (event) => {
-  event.returnValue = path.join(app.getPath('userData'), 'database.sqlite');
+// Close the database connection when the app is quitting
+app.on('before-quit', async () => {
+  if (db) {
+    await db.close();
+    console.log('Database connection closed');
+  }
 });
 
 enableHMR();
