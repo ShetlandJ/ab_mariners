@@ -34,8 +34,13 @@ function createWindow() {
       preload: preloadPath,
       contextIsolation: true,
       nodeIntegration: false
-    }
+    },
+    show: false // Don't show until ready to avoid flickering
   });
+  
+  // Maximize the window before showing it
+  mainWindow.maximize();
+  mainWindow.show();
 
   // Load your app - use loadFile for production and loadURL for development
   const isDev = process.env.NODE_ENV === 'development';
@@ -43,7 +48,7 @@ function createWindow() {
     console.log('Loading development URL: http://localhost:5173');
     mainWindow.loadURL('http://localhost:5173');
     // Open DevTools in development
-    mainWindow.webContents.openDevTools();
+    // mainWindow.webContents.openDevTools();
   } else {
     const indexPath = path.join(__dirname, '../dist/index.html');
     console.log('Loading production file:', indexPath);
@@ -67,23 +72,57 @@ function setupIpcHandlers() {
     try {
       if (searchTerm) {
         const searchLower = `%${searchTerm.toLowerCase()}%`;
-        const query = `
-          SELECT COUNT(*) as count 
-          FROM person
-          WHERE LOWER(forename || ' ' || surname) LIKE ?
-             OR LOWER(surname) LIKE ? 
-             OR LOWER(forename) LIKE ?
-             OR LOWER(alias1surname) LIKE ?
-             OR LOWER(alias1forename) LIKE ?
-             OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
-             OR LOWER(place_of_birth) LIKE ?
-             OR LOWER(freetext) LIKE ?
-             OR LOWER(cod) LIKE ?
-             OR LOWER(ship1) LIKE ?
-             OR LOWER(where1) LIKE ?
-             OR LOWER(shiplist) LIKE ?
-        `;
-        const result = await db.get(query, Array(12).fill(searchLower));
+        // Try to parse the search term as a year if it's a valid number
+        const isYearSearch = !isNaN(searchTerm) && searchTerm.length <= 4;
+        
+        let query;
+        let params;
+        
+        if (isYearSearch) {
+          // If the search term is a potential year, use equality for year fields
+          query = `
+            SELECT COUNT(*) as count 
+            FROM person
+            WHERE LOWER(forename || ' ' || surname) LIKE ?
+               OR LOWER(surname) LIKE ? 
+               OR LOWER(forename) LIKE ?
+               OR LOWER(alias1surname) LIKE ?
+               OR LOWER(alias1forename) LIKE ?
+               OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
+               OR LOWER(place_of_birth) LIKE ?
+               OR LOWER(freetext) LIKE ?
+               OR LOWER(cod) LIKE ?
+               OR LOWER(ship1) LIKE ?
+               OR LOWER(where1) LIKE ?
+               OR LOWER(shiplist) LIKE ?
+               OR year_of_birth = ?
+               OR year_of_death = ?
+          `;
+          params = [...Array(12).fill(searchLower), searchTerm, searchTerm];
+        } else {
+          // Regular text search without year matching
+          query = `
+            SELECT COUNT(*) as count 
+            FROM person
+            WHERE LOWER(forename || ' ' || surname) LIKE ?
+               OR LOWER(surname) LIKE ? 
+               OR LOWER(forename) LIKE ?
+               OR LOWER(alias1surname) LIKE ?
+               OR LOWER(alias1forename) LIKE ?
+               OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
+               OR LOWER(place_of_birth) LIKE ?
+               OR LOWER(freetext) LIKE ?
+               OR LOWER(cod) LIKE ?
+               OR LOWER(ship1) LIKE ?
+               OR LOWER(where1) LIKE ?
+               OR LOWER(shiplist) LIKE ?
+               OR CAST(year_of_birth AS TEXT) LIKE ?
+               OR CAST(year_of_death AS TEXT) LIKE ?
+          `;
+          params = [...Array(14).fill(searchLower)];
+        }
+        
+        const result = await db.get(query, params);
         return result.count;
       } else {
         const result = await db.get('SELECT COUNT(*) as count FROM person');
@@ -102,23 +141,50 @@ function setupIpcHandlers() {
       
       if (searchTerm) {
         const searchLower = `%${searchTerm.toLowerCase()}%`;
-        query = `
-          SELECT * FROM person
-          WHERE LOWER(forename || ' ' || surname) LIKE ?
-             OR LOWER(surname) LIKE ? 
-             OR LOWER(forename) LIKE ?
-             OR LOWER(alias1surname) LIKE ?
-             OR LOWER(alias1forename) LIKE ?
-             OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
-             OR LOWER(place_of_birth) LIKE ?
-             OR LOWER(freetext) LIKE ?
-             OR LOWER(cod) LIKE ?
-             OR LOWER(ship1) LIKE ?
-             OR LOWER(where1) LIKE ?
-             OR LOWER(shiplist) LIKE ?
-          ORDER BY surname, forename LIMIT ? OFFSET ?
-        `;
-        params = [...Array(12).fill(searchLower), limit, offset];
+        // Try to parse the search term as a year if it's a valid number
+        const isYearSearch = !isNaN(searchTerm) && searchTerm.length <= 4;
+        
+        if (isYearSearch) {
+          query = `
+            SELECT * FROM person
+            WHERE LOWER(forename || ' ' || surname) LIKE ?
+               OR LOWER(surname) LIKE ? 
+               OR LOWER(forename) LIKE ?
+               OR LOWER(alias1surname) LIKE ?
+               OR LOWER(alias1forename) LIKE ?
+               OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
+               OR LOWER(place_of_birth) LIKE ?
+               OR LOWER(freetext) LIKE ?
+               OR LOWER(cod) LIKE ?
+               OR LOWER(ship1) LIKE ?
+               OR LOWER(where1) LIKE ?
+               OR LOWER(shiplist) LIKE ?
+               OR year_of_birth = ?
+               OR year_of_death = ?
+            ORDER BY surname, forename LIMIT ? OFFSET ?
+          `;
+          params = [...Array(12).fill(searchLower), searchTerm, searchTerm, limit, offset];
+        } else {
+          query = `
+            SELECT * FROM person
+            WHERE LOWER(forename || ' ' || surname) LIKE ?
+               OR LOWER(surname) LIKE ? 
+               OR LOWER(forename) LIKE ?
+               OR LOWER(alias1surname) LIKE ?
+               OR LOWER(alias1forename) LIKE ?
+               OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
+               OR LOWER(place_of_birth) LIKE ?
+               OR LOWER(freetext) LIKE ?
+               OR LOWER(cod) LIKE ?
+               OR LOWER(ship1) LIKE ?
+               OR LOWER(where1) LIKE ?
+               OR LOWER(shiplist) LIKE ?
+               OR CAST(year_of_birth AS TEXT) LIKE ?
+               OR CAST(year_of_death AS TEXT) LIKE ?
+            ORDER BY surname, forename LIMIT ? OFFSET ?
+          `;
+          params = [...Array(14).fill(searchLower), limit, offset];
+        }
       } else {
         query = 'SELECT * FROM person ORDER BY surname, forename LIMIT ? OFFSET ?';
         params = [limit, offset];
@@ -130,22 +196,47 @@ function setupIpcHandlers() {
       let countQuery, countParams;
       if (searchTerm) {
         const searchLower = `%${searchTerm.toLowerCase()}%`;
-        countQuery = `
-          SELECT COUNT(*) as total FROM person
-          WHERE LOWER(forename || ' ' || surname) LIKE ?
-             OR LOWER(surname) LIKE ? 
-             OR LOWER(forename) LIKE ?
-             OR LOWER(alias1surname) LIKE ?
-             OR LOWER(alias1forename) LIKE ?
-             OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
-             OR LOWER(place_of_birth) LIKE ?
-             OR LOWER(freetext) LIKE ?
-             OR LOWER(cod) LIKE ?
-             OR LOWER(ship1) LIKE ?
-             OR LOWER(where1) LIKE ?
-             OR LOWER(shiplist) LIKE ?
-        `;
-        countParams = Array(12).fill(searchLower);
+        const isYearSearch = !isNaN(searchTerm) && searchTerm.length <= 4;
+        
+        if (isYearSearch) {
+          countQuery = `
+            SELECT COUNT(*) as total FROM person
+            WHERE LOWER(forename || ' ' || surname) LIKE ?
+               OR LOWER(surname) LIKE ? 
+               OR LOWER(forename) LIKE ?
+               OR LOWER(alias1surname) LIKE ?
+               OR LOWER(alias1forename) LIKE ?
+               OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
+               OR LOWER(place_of_birth) LIKE ?
+               OR LOWER(freetext) LIKE ?
+               OR LOWER(cod) LIKE ?
+               OR LOWER(ship1) LIKE ?
+               OR LOWER(where1) LIKE ?
+               OR LOWER(shiplist) LIKE ?
+               OR year_of_birth = ?
+               OR year_of_death = ?
+          `;
+          countParams = [...Array(12).fill(searchLower), searchTerm, searchTerm];
+        } else {
+          countQuery = `
+            SELECT COUNT(*) as total FROM person
+            WHERE LOWER(forename || ' ' || surname) LIKE ?
+               OR LOWER(surname) LIKE ? 
+               OR LOWER(forename) LIKE ?
+               OR LOWER(alias1surname) LIKE ?
+               OR LOWER(alias1forename) LIKE ?
+               OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
+               OR LOWER(place_of_birth) LIKE ?
+               OR LOWER(freetext) LIKE ?
+               OR LOWER(cod) LIKE ?
+               OR LOWER(ship1) LIKE ?
+               OR LOWER(where1) LIKE ?
+               OR LOWER(shiplist) LIKE ?
+               OR CAST(year_of_birth AS TEXT) LIKE ?
+               OR CAST(year_of_death AS TEXT) LIKE ?
+          `;
+          countParams = [...Array(14).fill(searchLower)];
+        }
       } else {
         countQuery = 'SELECT COUNT(*) as total FROM person';
         countParams = [];

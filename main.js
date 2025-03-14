@@ -19,8 +19,13 @@ function createWindow() {
             nodeIntegration: false, // Security best practices
             contextIsolation: true,
             preload: path.join(__dirname, 'preload.js')
-        }
+        },
+        show: false // Don't show until ready to avoid flickering
     });
+    
+    // Maximize the window before showing it
+    win.maximize();
+    win.show();
 
     if (process.env.NODE_ENV !== 'production') {
         win.loadURL('http://localhost:5173');
