@@ -7,7 +7,10 @@ export default defineConfig({
   base: '/',
   build: {
     outDir: 'dist',
-    emptyOutDir: true
+    emptyOutDir: true,
+    rollupOptions: {
+      external: ['better-sqlite3', 'electron']
+    }
   },
   server: {
     port: 5173,
@@ -15,7 +18,7 @@ export default defineConfig({
     historyApiFallback: true
   },
   optimizeDeps: {
-    exclude: ['better-sqlite3']
+    exclude: ['better-sqlite3', 'electron']
   },
   css: {
     postcss: {

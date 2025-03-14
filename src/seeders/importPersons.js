@@ -52,7 +52,7 @@ const dateFields = [
     'appdate1', 'entdate1', 'appdate2', 'entdate2', 'appdate3', 'entdate3'
 ];
 
-module.exports = function importPersons(db) {
+async function importPersons(db) {
     console.log("Starting person import process...");
 
     try {
@@ -204,4 +204,8 @@ module.exports = function importPersons(db) {
         db.prepare('ROLLBACK').run();
         throw err;
     }
+}
+
+module.exports = {
+    importPersons
 };

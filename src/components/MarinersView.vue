@@ -64,8 +64,8 @@ export default {
     const totalItems = ref(0);
     
     async function loadMariners() {
-      totalItems.value = database.getMarinersCount();
-      mariners.value = database.getMarinersPaginated(currentPage.value, ITEMS_PER_PAGE);
+      totalItems.value = await database.getMarinersCount();
+      mariners.value = await database.getMarinersPaginated(currentPage.value, ITEMS_PER_PAGE);
     }
 
     const {

@@ -1,8 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const path = require('path');
 
-contextBridge.exposeInMainWorld('electron', {
-  getExamples: () => ipcRenderer.invoke('get-examples'),
-  addTestExample: () => ipcRenderer.invoke('add-test-example'),
-  getDatabasePath: () => ipcRenderer.invoke('get-database-path')
+contextBridge.exposeInMainWorld('electronAPI', {
+  database: {
+    getMarinersCount: () => ipcRenderer.invoke('db:getMarinersCount'),
+    getMarinersPaginated: (page, limit) => ipcRenderer.invoke('db:getMarinersPaginated', page, limit)
+  }
 });
