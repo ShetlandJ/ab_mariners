@@ -284,6 +284,109 @@ function setupIpcHandlers() {
       throw error;
     }
   });
+
+  // Ship-related handlers
+  ipcMain.handle('get-ships-count', async (event, searchTerm = '') => {
+    try {
+      if (searchTerm) {
+        const searchLower = `%${searchTerm.toLowerCase()}%`;
+        const query = `
+          SELECT COUNT(*) as count 
+          FROM ship
+          WHERE LOWER(name) LIKE ?
+             OR LOWER(designation) LIKE ?
+        `;
+        const params = [...Array(2).fill(searchLower)];
+        const result = await db.get(query, params);
+        return result.count;
+      } else {
+        const result = await db.get('SELECT COUNT(*) as count FROM ship');
+        return result.count;
+      }
+    } catch (error) {
+      console.error('Error counting ships:', error);
+      return 0;
+    }
+  });
+
+  ipcMain.handle('get-ships-paginated', async (event, page, limit, searchTerm = '') => {
+    try {
+      const offset = (page - 1) * limit;
+      let query, params;
+      
+      if (searchTerm) {
+        const searchLower = `%${searchTerm.toLowerCase()}%`;
+        query = `
+          SELECT * FROM ship
+          WHERE LOWER(name) LIKE ?
+             OR LOWER(designation) LIKE ?
+          ORDER BY name LIMIT ? OFFSET ?
+        `;
+        params = [...Array(2).fill(searchLower), limit, offset];
+      } else {
+        query = 'SELECT * FROM ship ORDER BY name LIMIT ? OFFSET ?';
+        params = [limit, offset];
+      }
+      
+      const ships = await db.all(query, params);
+      
+      // Get total count with same search conditions
+      let countQuery, countParams;
+      if (searchTerm) {
+        const searchLower = `%${searchTerm.toLowerCase()}%`;
+        countQuery = `
+          SELECT COUNT(*) as total FROM ship
+          WHERE LOWER(name) LIKE ?
+             OR LOWER(designation) LIKE ?
+        `;
+        countParams = [...Array(2).fill(searchLower)];
+      } else {
+        countQuery = 'SELECT COUNT(*) as total FROM ship';
+        countParams = [];
+      }
+      
+      const countResult = await db.get(countQuery, countParams);
+      
+      return {
+        ships,
+        total: countResult.total
+      };
+    } catch (error) {
+      console.error('Error fetching ships:', error);
+      return { ships: [], total: 0 };
+    }
+  });
+
+  ipcMain.handle('update-ship', async (event, ship) => {
+    try {
+      if (!ship || !ship.ship_id) {
+        throw new Error('Invalid ship data: ship_id is required');
+      }
+
+      // Create the SQL update statement dynamically from the ship object
+      const fields = Object.keys(ship)
+        .filter(field => field !== 'ship_id') // Don't update the ID
+        .map(field => `${field} = ?`).join(', ');
+      
+      const values = Object.keys(ship)
+        .filter(field => field !== 'ship_id')
+        .map(field => ship[field]);
+      
+      // Add the ID to the values array for the WHERE clause
+      values.push(ship.ship_id);
+      
+      const sql = `UPDATE ship SET ${fields} WHERE ship_id = ?`;
+      
+      // Execute the update
+      await db.run(sql, values);
+      
+      // Return the updated ship
+      return ship;
+    } catch (error) {
+      console.error('Error updating ship:', error);
+      throw error;
+    }
+  });
 }
 
 app.whenReady().then(async () => {
