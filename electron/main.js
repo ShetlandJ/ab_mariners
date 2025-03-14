@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { enableHMR } = require('./dev-config');
 
@@ -13,11 +13,19 @@ function createWindow() {
     }
   });
 
+  const server = {
+    host: 'localhost',
+    port: 5173,
+  };
+
+  win.loadURL(
+    process.env.NODE_ENV === 'development' 
+      ? `http://${server.host}:${server.port}`
+      : `file://${path.join(__dirname, '../dist/index.html')}`
+  );
+
   if (process.env.NODE_ENV === 'development') {
-    win.loadURL('http://localhost:5173');
     win.webContents.openDevTools();
-  } else {
-    win.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 }
 
@@ -31,6 +39,10 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();
+});
+
+ipcMain.handle('get-database-path', () => {
+  return path.join(app.getPath('userData'), 'database.sqlite');
 });
 
 enableHMR();

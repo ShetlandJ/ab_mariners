@@ -1,12 +1,14 @@
 const Database = require('better-sqlite3');
+const { app } = require('electron').remote;
 const path = require('path');
-const importPersons = require('../seeders/importPersons');
-const importShips = require('../seeders/importShips');
-const importPersonShips = require('../seeders/importPersonShips');
+import importPersons from '../seeders/importPersons';
+import importShips from '../seeders/importShips';
+import importPersonShips from '../seeders/importPersonShips';
 
 class DatabaseService {
     constructor() {
-        const dbPath = path.join(__dirname, '../../database.sqlite');
+        const userDataPath = app.getPath('userData');
+        const dbPath = path.join(userDataPath, 'database.sqlite');
         this.db = new Database(dbPath, { 
             verbose: console.log,
             fileMustExist: false
@@ -117,6 +119,20 @@ class DatabaseService {
         
         this.enableForeignKeys();
     }
+
+    getMarinersCount() {
+        return this.db.prepare('SELECT COUNT(*) as count FROM person').get().count;
+    }
+
+    getMarinersPaginated(page = 1, limit = 20) {
+        const offset = (page - 1) * limit;
+        return this.db.prepare(`
+            SELECT person_id, surname, forename, year_of_birth, year_of_death, place_of_birth 
+            FROM person 
+            ORDER BY surname, forename 
+            LIMIT ? OFFSET ?
+        `).all(limit, offset);
+    }
 }
 
-module.exports = new DatabaseService();
+export default new DatabaseService();

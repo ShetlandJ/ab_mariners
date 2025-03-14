@@ -4,13 +4,31 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [vue()],
-  base: process.env.NODE_ENV === 'development' ? '/' : './',
+  base: '/',
   build: {
     outDir: 'dist',
     emptyOutDir: true
   },
   server: {
     port: 5173,
-    strictPort: true
+    strictPort: true,
+    historyApiFallback: true
+  },
+  optimizeDeps: {
+    exclude: ['better-sqlite3']
+  },
+  css: {
+    postcss: {
+      plugins: [
+        require('tailwindcss'),
+        require('autoprefixer'),
+      ],
+    }
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src')
+    },
+    extensions: ['.js', '.vue', '.json']
   }
 });

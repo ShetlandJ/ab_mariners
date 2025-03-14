@@ -10,12 +10,14 @@
     "build": "vite build",
     "preview": "vite preview",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
-    "seed": "electron src/scripts/seed.js"
+    "seed": "electron src/scripts/seed.js",
+    "fresh": "yarn install && yarn dev"
   },
   "dependencies": {
     "@vue/devtools": "^7.7.2",
     "better-sqlite3": "^8.5.0",
     "vue": "^3.3.4",
+    "vue-router": "^4.5.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
