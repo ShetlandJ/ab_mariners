@@ -1,10 +1,10 @@
 class DatabaseService {
-    async getMarinersCount() {
-        return window.electronAPI.database.getMarinersCount();
+    async getMarinersCount(searchTerm = '') {
+        return window.electronAPI.database.getMarinersCount(searchTerm);
     }
 
-    async getMarinersPaginated(page = 1, limit = 20) {
-        return window.electronAPI.database.getMarinersPaginated(page, limit);
+    async getMarinersPaginated(page = 1, limit = 20, searchTerm = '') {
+        return window.electronAPI.database.getMarinersPaginated(page, limit, searchTerm);
     }
 }
 

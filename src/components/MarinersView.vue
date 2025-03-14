@@ -1,6 +1,17 @@
 <template>
   <div class="mariners-view">
-    <h1 class="text-2xl font-bold mb-6">Mariners</h1>
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold">Mariners</h1>
+      <div class="search-container">
+        <input
+          type="text"
+          v-model="searchTerm"
+          @input="handleSearch"
+          placeholder="Search by name..."
+          class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+    </div>
 
     <div class="bg-white rounded-lg shadow overflow-hidden">
       <table class="min-w-full divide-y divide-gray-200">
@@ -62,10 +73,28 @@ export default {
   setup() {
     const mariners = ref([]);
     const totalItems = ref(0);
+    const searchTerm = ref('');
+    const searchTimeout = ref(null);
     
     async function loadMariners() {
-      totalItems.value = await database.getMarinersCount();
-      mariners.value = await database.getMarinersPaginated(currentPage.value, ITEMS_PER_PAGE);
+      totalItems.value = await database.getMarinersCount(searchTerm.value);
+      mariners.value = await database.getMarinersPaginated(
+        currentPage.value, 
+        ITEMS_PER_PAGE,
+        searchTerm.value
+      );
+    }
+
+    function handleSearch() {
+      // Debounce the search to avoid too many requests
+      if (searchTimeout.value) {
+        clearTimeout(searchTimeout.value);
+      }
+      
+      searchTimeout.value = setTimeout(() => {
+        currentPage.value = 1; // Reset to first page when searching
+        loadMariners();
+      }, 300);
     }
 
     const {
@@ -91,7 +120,9 @@ export default {
       hasPrevPage,
       nextPage,
       prevPage,
-      itemsPerPage: ITEMS_PER_PAGE
+      itemsPerPage: ITEMS_PER_PAGE,
+      searchTerm,
+      handleSearch
     };
   }
 }

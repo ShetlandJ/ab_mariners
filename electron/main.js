@@ -63,26 +63,95 @@ function createWindow() {
 
 // Set up IPC handlers for database operations
 function setupIpcHandlers() {
-  // Match the handler names with what's in the preload script
-  ipcMain.handle('get-mariners-count', async () => {
+  ipcMain.handle('get-mariners-count', async (event, searchTerm = '') => {
     try {
-      const result = await db.get('SELECT COUNT(*) as count FROM person');
-      console.log('Mariners count:', result);
-      return result.count;
+      if (searchTerm) {
+        const searchLower = `%${searchTerm.toLowerCase()}%`;
+        const query = `
+          SELECT COUNT(*) as count 
+          FROM person
+          WHERE LOWER(forename || ' ' || surname) LIKE ?
+             OR LOWER(surname) LIKE ? 
+             OR LOWER(forename) LIKE ?
+             OR LOWER(alias1surname) LIKE ?
+             OR LOWER(alias1forename) LIKE ?
+             OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
+             OR LOWER(place_of_birth) LIKE ?
+             OR LOWER(freetext) LIKE ?
+             OR LOWER(cod) LIKE ?
+             OR LOWER(ship1) LIKE ?
+             OR LOWER(where1) LIKE ?
+             OR LOWER(shiplist) LIKE ?
+        `;
+        const result = await db.get(query, Array(12).fill(searchLower));
+        return result.count;
+      } else {
+        const result = await db.get('SELECT COUNT(*) as count FROM person');
+        return result.count;
+      }
     } catch (error) {
       console.error('Error counting mariners:', error);
       return 0;
     }
   });
 
-  ipcMain.handle('get-mariners-paginated', async (event, page, limit) => {
+  ipcMain.handle('get-mariners-paginated', async (event, page, limit, searchTerm = '') => {
     try {
       const offset = (page - 1) * limit;
-      const mariners = await db.all(
-        'SELECT * FROM person ORDER BY surname, forename LIMIT ? OFFSET ?', 
-        [limit, offset]
-      );
-      const countResult = await db.get('SELECT COUNT(*) as total FROM person');
+      let query, params;
+      
+      if (searchTerm) {
+        const searchLower = `%${searchTerm.toLowerCase()}%`;
+        query = `
+          SELECT * FROM person
+          WHERE LOWER(forename || ' ' || surname) LIKE ?
+             OR LOWER(surname) LIKE ? 
+             OR LOWER(forename) LIKE ?
+             OR LOWER(alias1surname) LIKE ?
+             OR LOWER(alias1forename) LIKE ?
+             OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
+             OR LOWER(place_of_birth) LIKE ?
+             OR LOWER(freetext) LIKE ?
+             OR LOWER(cod) LIKE ?
+             OR LOWER(ship1) LIKE ?
+             OR LOWER(where1) LIKE ?
+             OR LOWER(shiplist) LIKE ?
+          ORDER BY surname, forename LIMIT ? OFFSET ?
+        `;
+        params = [...Array(12).fill(searchLower), limit, offset];
+      } else {
+        query = 'SELECT * FROM person ORDER BY surname, forename LIMIT ? OFFSET ?';
+        params = [limit, offset];
+      }
+      
+      const mariners = await db.all(query, params);
+      
+      // Get total count with same search conditions
+      let countQuery, countParams;
+      if (searchTerm) {
+        const searchLower = `%${searchTerm.toLowerCase()}%`;
+        countQuery = `
+          SELECT COUNT(*) as total FROM person
+          WHERE LOWER(forename || ' ' || surname) LIKE ?
+             OR LOWER(surname) LIKE ? 
+             OR LOWER(forename) LIKE ?
+             OR LOWER(alias1surname) LIKE ?
+             OR LOWER(alias1forename) LIKE ?
+             OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
+             OR LOWER(place_of_birth) LIKE ?
+             OR LOWER(freetext) LIKE ?
+             OR LOWER(cod) LIKE ?
+             OR LOWER(ship1) LIKE ?
+             OR LOWER(where1) LIKE ?
+             OR LOWER(shiplist) LIKE ?
+        `;
+        countParams = Array(12).fill(searchLower);
+      } else {
+        countQuery = 'SELECT COUNT(*) as total FROM person';
+        countParams = [];
+      }
+      
+      const countResult = await db.get(countQuery, countParams);
       
       return {
         mariners,
