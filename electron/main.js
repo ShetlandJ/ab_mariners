@@ -12,7 +12,7 @@ async function initDatabase() {
   try {
     // Open the database
     db = await open({
-      filename: path.join(__dirname, '../database.sqlite'),
+      filename: path.join(__dirname, '../db/database.sqlite'),
       driver: sqlite3.Database
     });
     
