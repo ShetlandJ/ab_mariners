@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
     getMarinersPaginated: (page, limit, searchTerm) => {
       return ipcRenderer.invoke('get-mariners-paginated', page, limit, searchTerm);
+    },
+    updateMariner: (mariner) => {
+      return ipcRenderer.invoke('update-mariner', mariner);
     }
   }
 });

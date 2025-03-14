@@ -253,6 +253,37 @@ function setupIpcHandlers() {
       return { mariners: [], total: 0 };
     }
   });
+
+  ipcMain.handle('update-mariner', async (event, mariner) => {
+    try {
+      if (!mariner || !mariner.person_id) {
+        throw new Error('Invalid mariner data: person_id is required');
+      }
+
+      // Create the SQL update statement dynamically from the mariner object
+      const fields = Object.keys(mariner)
+        .filter(field => field !== 'person_id') // Don't update the ID
+        .map(field => `${field} = ?`).join(', ');
+      
+      const values = Object.keys(mariner)
+        .filter(field => field !== 'person_id')
+        .map(field => mariner[field]);
+      
+      // Add the ID to the values array for the WHERE clause
+      values.push(mariner.person_id);
+      
+      const sql = `UPDATE person SET ${fields} WHERE person_id = ?`;
+      
+      // Execute the update
+      await db.run(sql, values);
+      
+      // Return the updated mariner
+      return mariner;
+    } catch (error) {
+      console.error('Error updating mariner:', error);
+      throw error;
+    }
+  });
 }
 
 app.whenReady().then(async () => {

@@ -21,7 +21,7 @@
             <th>Birth Year</th>
             <th>Death Year</th>
             <th>Place of Birth</th>
-            <th>Actions</th>
+            <th class="text-center">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
@@ -70,6 +70,14 @@
         </button>
       </div>
     </div>
+    
+    <!-- Edit Mariner Modal -->
+    <EditMarinerModal 
+      :show="showEditModal" 
+      :mariner="currentMariner" 
+      @close="closeEditModal" 
+      @saved="handleMarinerSaved"
+    />
   </div>
 </template>
 
@@ -77,16 +85,22 @@
 import { ref, onMounted, watch } from 'vue';
 import { usePagination } from '../composables/usePagination';
 import database from '../services/database';
+import EditMarinerModal from './EditMarinerModal.vue';
 
 const ITEMS_PER_PAGE = 15;
 
 export default {
   name: 'MarinersView',
+  components: {
+    EditMarinerModal
+  },
   setup() {
     const mariners = ref([]);
     const totalItems = ref(0);
     const searchTerm = ref('');
     const searchTimeout = ref(null);
+    const showEditModal = ref(false);
+    const currentMariner = ref({});
     
     async function loadMariners() {
       totalItems.value = await database.getMarinersCount(searchTerm.value);
@@ -124,9 +138,17 @@ export default {
     watch(currentPage, loadMariners);
 
     function editMariner(mariner) {
-      console.log('Edit mariner:', mariner);
-      // You can implement the edit functionality here
-      // For example, navigate to an edit page or open a modal
+      currentMariner.value = { ...mariner }; // Create a copy to avoid direct mutation
+      showEditModal.value = true;
+    }
+
+    function closeEditModal() {
+      showEditModal.value = false;
+    }
+
+    async function handleMarinerSaved(updatedMariner) {
+      // Reload mariners to reflect the changes
+      await loadMariners();
     }
 
     return {
@@ -141,7 +163,11 @@ export default {
       itemsPerPage: ITEMS_PER_PAGE,
       searchTerm,
       handleSearch,
-      editMariner
+      editMariner,
+      showEditModal,
+      currentMariner,
+      closeEditModal,
+      handleMarinerSaved
     };
   }
 }
