@@ -79,7 +79,7 @@ function setupIpcHandlers() {
     try {
       const offset = (page - 1) * limit;
       const mariners = await db.all(
-        'SELECT * FROM person LIMIT ? OFFSET ?', 
+        'SELECT * FROM person ORDER BY surname, forename LIMIT ? OFFSET ?', 
         [limit, offset]
       );
       const countResult = await db.get('SELECT COUNT(*) as total FROM person');

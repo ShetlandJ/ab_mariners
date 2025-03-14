@@ -31,6 +31,13 @@ const skipTitleCase = [
     'prest3'         // might be raw data/codes
 ];
 
+// Add column name mapping for Excel columns with spaces
+const columnMapping = {
+    'year of birth': 'year_of_birth',
+    'year of death': 'year_of_death',
+    // Add other mappings if needed
+};
+
 // Apply title case to all text fields except those in skipTitleCase
 const stringFields = [
     'surname', 'forename', 
@@ -73,8 +80,13 @@ async function importPersons(db, useTransaction = true) {
         const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
         console.log(`Excel file read successfully. Found ${rows.length} rows.`);
         
+        // Enhanced debugging - log column names
+        if (rows.length > 0) {
+            console.log('Excel column names:', Object.keys(rows[0]));
+        }
+        
         // Log first row to debug column names
-        console.log('First row sample:', rows[0]);
+        console.log('First row sample:', JSON.stringify(rows[0], null, 2));
 
         // Start transaction
         if (useTransaction) db.prepare('BEGIN TRANSACTION').run();
@@ -148,24 +160,48 @@ async function importPersons(db, useTransaction = true) {
                 // Clean and transform the data
                 const cleanRow = Object.keys(row).reduce((acc, key) => {
                     const lowerKey = key.toLowerCase();
+                    // Map column names with spaces to underscore versions
+                    const mappedKey = columnMapping[lowerKey] || lowerKey;
                     let value = row[key] === '' ? null : row[key];
                     
                     // Apply title case to any string value that isn't in skipTitleCase
-                    if (value && typeof value === 'string' && !skipTitleCase.includes(lowerKey)) {
+                    if (value && typeof value === 'string' && !skipTitleCase.includes(mappedKey)) {
                         value = toTitleCase(String(value));
                     }
                     
                     // Convert date fields
-                    if (value && dateFields.includes(lowerKey)) {
+                    if (value && dateFields.includes(mappedKey)) {
                         value = formatDate(value);
                     }
                     
-                    acc[lowerKey] = value;
+                    acc[mappedKey] = value;
                     return acc;
                 }, {});
 
                 // Merge with defaults
                 const finalRow = { ...defaultRow, ...cleanRow };
+
+                // Additional debugging for first row
+                if (index === 0) {
+                    console.log('Raw row data:', JSON.stringify(row, null, 2));
+                    
+                    // Try to specifically check if the problematic columns exist
+                    console.log('Year of birth exists?', 'year of birth' in row);
+                    console.log('Year of death exists?', 'year of death' in row);
+                    
+                    // Check case-sensitivity
+                    const columnNames = Object.keys(row);
+                    const birthColumn = columnNames.find(col => col.toLowerCase() === 'year of birth');
+                    const deathColumn = columnNames.find(col => col.toLowerCase() === 'year of death');
+                    
+                    console.log('Actual year of birth column:', birthColumn);
+                    console.log('Actual year of death column:', deathColumn);
+                }
+
+                // Debugging the mapping
+                if (index === 0) {
+                    console.log('After mapping:', cleanRow);
+                }
 
                 if (index === 0) {
                     console.log('Sample processed row:', finalRow);

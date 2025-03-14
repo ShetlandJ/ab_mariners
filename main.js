@@ -42,7 +42,7 @@ app.whenReady().then(async () => {
     ipcMain.handle('get-mariners-paginated', async (_, page, limit) => {
         const db = await getDatabaseConnection();
         const offset = (page - 1) * limit;
-        return await db.all('SELECT * FROM person LIMIT ? OFFSET ?', [limit, offset]);
+        return await db.all('SELECT * FROM person ORDER BY forename, surname LIMIT ? OFFSET ?', [limit, offset]);
     });
 
     console.log('Main process loaded successfully');
