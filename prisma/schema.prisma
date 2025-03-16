@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  username     String    @unique
+  email        String    @unique
+  password     String
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  vessels      Vessel[]
+  observations Observation[]
+}
+
+model Vessel {
+  id           Int       @id @default(autoincrement())
+  user_id      Int
+  name         String
+  type         String
+  length       Float?
+  beam         Float?
+  draft        Float?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  user         User      @relation(fields: [user_id], references: [id])
+  observations Observation[]
+}
+
+model Observation {
+  id           Int       @id @default(autoincrement())
+  user_id      Int
+  vessel_id    Int?
+  latitude     Float
+  longitude    Float
+  heading      Float?
+  speed        Float?
+  wind_speed   Float?
+  wind_direction Float?
+  wave_height  Float?
+  wave_period  Float?
+  wave_direction Float?
+  temperature  Float?
+  pressure     Float?
+  visibility   Float?
+  cloud_cover  Int?
+  precipitation String?
+  notes        String?
+  created_at   DateTime  @default(now())
+  updated_at   DateTime  @updatedAt
+  user         User      @relation(fields: [user_id], references: [id])
+  vessel       Vessel?   @relation(fields: [vessel_id], references: [id])
+}
