@@ -47,6 +47,14 @@
             <span class="text-gray-900 dark:text-white">{{ mariner.year_of_death || 'Unknown' }}</span>
           </div>
           <div class="flex">
+            <span class="w-32 font-medium text-gray-600 dark:text-gray-300">Died at Sea:</span>
+            <span class="text-gray-900 dark:text-white">
+              <span v-if="mariner.died_at_sea === true">Yes</span>
+              <span v-else-if="mariner.died_at_sea === false">No</span>
+              <span v-else>Unknown</span>
+            </span>
+          </div>
+          <div class="flex">
             <span class="w-32 font-medium text-gray-600 dark:text-gray-300">Birthplace:</span>
             <span class="text-gray-900 dark:text-white">{{ mariner.place_of_birth || 'Unknown' }}</span>
           </div>

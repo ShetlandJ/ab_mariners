@@ -61,6 +61,15 @@
             </div>
 
             <div class="mb-4">
+              <label class="block text-sm font-medium mb-1 dark:text-white">Died at Sea</label>
+              <select v-model="form.died_at_sea" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                <option :value="null">Unknown</option>
+                <option :value="true">Yes</option>
+                <option :value="false">No</option>
+              </select>
+            </div>
+
+            <div class="mb-4">
               <label class="block text-sm font-medium mb-1 dark:text-white">Place of Birth</label>
               <input type="text" v-model="form.place_of_birth" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
             </div>
@@ -246,6 +255,7 @@ export default {
       alias2forename: '',
       year_of_birth: null,
       year_of_death: null,
+      died_at_sea: null,
       place_of_birth: '',
       remittence: '',
       allotment: '',

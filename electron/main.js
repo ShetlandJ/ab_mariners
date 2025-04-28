@@ -294,6 +294,11 @@ function setupIpcHandlers() {
       
       if (!mariner) return null;
       
+      // Cast died_at_sea to boolean
+      if (mariner.died_at_sea !== null) {
+        mariner.died_at_sea = Boolean(mariner.died_at_sea);
+      }
+      
       // Get ship assignments from the person_ship table
       const shipAssignmentsQuery = `
         SELECT ps.*, s.name as ship_name, s.designation
