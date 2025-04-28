@@ -285,6 +285,35 @@ function setupIpcHandlers() {
     }
   });
 
+  // Add this handler for getting a mariner by ID
+  ipcMain.handle('get-mariner-by-id', async (event, id) => {
+    try {
+      // Get the basic mariner information
+      const query = 'SELECT * FROM person WHERE person_id = ?';
+      const mariner = await db.get(query, [id]);
+      
+      if (!mariner) return null;
+      
+      // Get ship assignments from the person_ship table
+      const shipAssignmentsQuery = `
+        SELECT ps.*, s.name as ship_name, s.designation
+        FROM person_ship ps
+        LEFT JOIN ship s ON ps.ship_id = s.shipID
+        WHERE ps.person_id = ?
+        ORDER BY ps.start_date
+      `;
+      const shipAssignments = await db.all(shipAssignmentsQuery, [id]);
+      
+      // Add the ship assignments to the mariner object
+      mariner.shipAssignments = shipAssignments;
+      
+      return mariner;
+    } catch (error) {
+      console.error('Error fetching mariner by ID:', error);
+      throw error;
+    }
+  });
+
   // Ship-related handlers
   ipcMain.handle('get-ships-count', async (event, searchTerm = '') => {
     try {

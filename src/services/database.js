@@ -8,6 +8,10 @@ const database = {
     return window.electronAPI.database.getMarinersPaginated(page, limit, searchTerm);
   },
 
+  async getMarinerById(id) {
+    return window.electronAPI.database.getMarinerById(id);
+  },
+
   async updateMariner(mariner) {
     return window.electronAPI.database.updateMariner(mariner);
   },

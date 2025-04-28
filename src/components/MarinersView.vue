@@ -26,7 +26,12 @@
         </thead>
         <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
           <tr v-for="mariner in mariners.mariners" :key="mariner.person_id" class="hover:bg-gray-100 dark:hover:bg-gray-700">
-            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{{ mariner.surname }}, {{ mariner.forename }}</td>
+            <td 
+              @click="viewMarinerDetails(mariner)" 
+              class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white cursor-pointer hover:text-blue-500 dark:hover:text-blue-400"
+            >
+              {{ mariner.surname }}, {{ mariner.forename }}
+            </td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ mariner.year_of_birth || '-' }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ mariner.year_of_death || '-' }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ mariner.place_of_birth || '-' }}</td>
@@ -86,6 +91,7 @@ import { ref, onMounted, watch } from 'vue';
 import { usePagination } from '../composables/usePagination';
 import database from '../services/database';
 import EditMarinerModal from './EditMarinerModal.vue';
+import { useRouter } from 'vue-router';
 
 const ITEMS_PER_PAGE = 15;
 
@@ -101,6 +107,7 @@ export default {
     const searchTimeout = ref(null);
     const showEditModal = ref(false);
     const currentMariner = ref({});
+    const router = useRouter();
     
     async function loadMariners() {
       totalItems.value = await database.getMarinersCount(searchTerm.value);
@@ -151,6 +158,17 @@ export default {
       await loadMariners();
     }
 
+    function viewMarinerDetails(mariner) {
+      router.push({
+        name: 'mariner-person-view',
+        params: { id: mariner.person_id },
+        query: { 
+          page: currentPage.value,
+          search: searchTerm.value 
+        }
+      });
+    }
+
     return {
       mariners,
       totalItems,
@@ -167,7 +185,8 @@ export default {
       showEditModal,
       currentMariner,
       closeEditModal,
-      handleMarinerSaved
+      handleMarinerSaved,
+      viewMarinerDetails
     };
   }
 }
