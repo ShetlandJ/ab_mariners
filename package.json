@@ -14,13 +14,15 @@
     "fresh": "yarn install && yarn dev"
   },
   "dependencies": {
+    "@electron/remote": "^2.0.10",
+    "@prisma/client": "^5.0.0",
     "@vue/devtools": "^7.7.2",
     "better-sqlite3": "^8.5.0",
+    "echarts": "^5.6.0",
     "vue": "^3.3.4",
+    "vue-echarts": "^7.0.3",
     "vue-router": "^4.5.0",
-    "xlsx": "^0.18.5",
-    "@electron/remote": "^2.0.10",
-    "@prisma/client": "^5.0.0"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^4.2.3",
@@ -31,10 +33,10 @@
     "electron-devtools-installer": "^3.2.0",
     "electron-rebuild": "^3.2.9",
     "postcss": "^8.4.27",
+    "prisma": "^5.0.0",
     "tailwindcss": "^3.3.3",
     "vite": "^4.4.7",
     "vite-plugin-electron": "^0.12.0",
-    "wait-on": "^7.0.1",
-    "prisma": "^5.0.0"
+    "wait-on": "^7.0.1"
   }
 }
