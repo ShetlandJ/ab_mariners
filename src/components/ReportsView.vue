@@ -4,7 +4,7 @@
       <h1 class="text-2xl font-bold dark:text-white">Reports</h1>
     </div>
 
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+    <div class="bg-blue-100 dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
       <h2 class="text-xl font-semibold mb-4 dark:text-white">Birthplace Distribution</h2>
       
       <div v-if="isLoading" class="flex justify-center py-8">
@@ -14,7 +14,14 @@
       <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Pie Chart -->
         <div class="h-80 relative">
-          <v-chart class="w-full h-full" :option="chartOption" autoresize @click="handleChartClick" />
+          <!-- Force chart recreation when dark mode changes by using a key -->
+          <v-chart 
+            :key="chartRenderKey" 
+            class="w-full h-full" 
+            :option="chartOption" 
+            autoresize 
+            @click="handleChartClick" 
+          />
           <!-- Back button when showing Other details -->
           <button 
             v-if="showingOtherDetails" 
@@ -77,7 +84,7 @@
       </div>
     </div>
 
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+    <div class="bg-blue-100 dark:bg-gray-800 rounded-lg shadow p-6">
       <h2 class="text-xl font-semibold mb-4 dark:text-white">Dataset Overview</h2>
       
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -124,7 +131,7 @@
                 </tr>
               </thead>
               <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                <tr v-for="mariner in paginatedMariners" :key="mariner.person_id" class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <tr v-for="mariner in paginatedMariners" :key="mariner.person_id" class="hover:bg-gray-100 dark:hover:bg-gray-700">
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
                     {{ mariner.surname }}, {{ mariner.forename }}
                   </td>
@@ -175,7 +182,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import database from '../services/database';
 import { getStandardizedPlace } from '../data/birthplaces';
 import { use } from 'echarts/core';
@@ -211,6 +218,7 @@ export default {
     const isLoading = ref(true);
     const mariners = ref([]);
     const chartOption = ref({});
+    const chartRenderKey = ref(0); // Key to force chart recreation
     const selectedLocation = ref('');
     const availableLocations = ref([]);
     const filteredMariners = ref([]);
@@ -218,6 +226,39 @@ export default {
     const showingOtherDetails = ref(false);
     const otherPlacesData = ref([]);
     
+    // Track dark mode state through direct DOM observation
+    const isDarkModeActive = ref(document.documentElement.classList.contains('dark'));
+    
+    // Create a MutationObserver to watch for dark mode class changes
+    onMounted(() => {
+      // Set up the observer to watch the html element for class changes
+      const observer = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+          if (mutation.attributeName === 'class') {
+            const isDark = document.documentElement.classList.contains('dark');
+            console.log('DOM dark mode class changed:', isDark);
+            
+            if (isDark !== isDarkModeActive.value) {
+              isDarkModeActive.value = isDark;
+              
+              // Update chart with new theme
+              generateChartData();
+              
+              // Force chart recreation
+              chartRenderKey.value++;
+              console.log('Chart render key updated to:', chartRenderKey.value);
+            }
+          }
+        });
+      });
+      
+      // Start observing
+      observer.observe(document.documentElement, { 
+        attributes: true, 
+        attributeFilter: ['class']
+      });
+    });
+
     // Load all mariners data
     const loadMarinersData = async () => {
       isLoading.value = true;
@@ -343,7 +384,7 @@ export default {
           left: 'center',
           top: 0,
           textStyle: {
-            color: isDarkMode.value ? '#fff' : '#333'
+            color: isDarkModeActive.value ? '#fff' : '#333'
           }
         },
         tooltip: {
@@ -357,7 +398,7 @@ export default {
           top: 30,
           bottom: 20,
           textStyle: {
-            color: isDarkMode.value ? '#fff' : '#333'
+            color: isDarkModeActive.value ? '#fff' : '#333'
           }
         },
         series: [
@@ -368,18 +409,20 @@ export default {
             avoidLabelOverlap: true,
             itemStyle: {
               borderRadius: 10,
-              borderColor: isDarkMode.value ? '#1f2937' : '#fff',
+              borderColor: isDarkModeActive.value ? '#1f2937' : '#fff',
               borderWidth: 2
             },
             label: {
               show: false,
-              position: 'center'
+              position: 'center',
+              color: isDarkModeActive.value ? '#fff' : '#333'
             },
             emphasis: {
               label: {
                 show: true,
                 fontSize: '18',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                color: isDarkModeActive.value ? '#fff' : '#333'
               }
             },
             labelLine: {
@@ -390,7 +433,7 @@ export default {
                 return {
                   ...item, 
                   itemStyle: {
-                    color: isDarkMode.value ? '#6b7280' : '#9ca3af' // grey-500 or grey-400 for "Other"
+                    color: isDarkModeActive.value ? '#6b7280' : '#9ca3af' // grey-500 or grey-400 for "Other"
                   }
                 };
               }
@@ -446,16 +489,6 @@ export default {
       filteredCount.value = 0;
     };
 
-    // Track dark mode for chart styling
-    const isDarkMode = computed(() => {
-      return document.documentElement.classList.contains('dark');
-    });
-    
-    // Watch for dark mode changes to update chart
-    watch(isDarkMode, () => {
-      generateChartData();
-    });
-    
     // Watch for location changes
     watch(selectedLocation, () => {
       loadFilteredMariners();
@@ -515,6 +548,7 @@ export default {
       isLoading,
       mariners,
       chartOption,
+      chartRenderKey,
       totalMariners,
       totalMarinersWithBirthplace,
       missingBirthplaceCount,

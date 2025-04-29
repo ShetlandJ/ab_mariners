@@ -38,7 +38,7 @@
     </nav>
 
     <!-- Main content area with proper padding for sidebar -->
-    <div class="pl-64 w-full min-h-screen bg-white dark:bg-gray-900 transition-colors duration-200">
+    <div class="pl-64 w-full min-h-screen bg-blue-50 dark:bg-gray-900 transition-colors duration-200">
       <!-- Router view for page content -->
       <main class="p-6">
         <router-view />
@@ -112,7 +112,7 @@ export default {
 <style>
 /* Base styles */
 body {
-  @apply bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200;
+  @apply bg-blue-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200;
   margin: 0;
   padding: 0;
   overflow-x: hidden;
