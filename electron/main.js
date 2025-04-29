@@ -421,6 +421,109 @@ function setupIpcHandlers() {
       throw error;
     }
   });
+
+  // Database backup handlers
+  ipcMain.handle('get-database-info', async () => {
+    try {
+      // Get the database file path
+      const dbPath = path.join(__dirname, '../db/database.sqlite');
+      
+      // Get the file stats
+      const fs = require('fs');
+      const stats = fs.statSync(dbPath);
+      
+      return {
+        path: dbPath,
+        size: stats.size,
+        lastModified: stats.mtime
+      };
+    } catch (error) {
+      console.error('Error getting database info:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('create-backup', async () => {
+    try {
+      const fs = require('fs');
+      const { dialog } = require('electron');
+      
+      // Get the source database path
+      const dbPath = path.join(__dirname, '../db/database.sqlite');
+      
+      // Show save dialog to let user choose where to save the backup
+      const result = await dialog.showSaveDialog(mainWindow, {
+        title: 'Save Database Backup',
+        defaultPath: `database-backup-${new Date().toISOString().replace(/:/g, '-')}.sqlite`,
+        buttonLabel: 'Save Backup',
+        filters: [
+          { name: 'SQLite Database', extensions: ['sqlite', 'db'] },
+          { name: 'All Files', extensions: ['*'] }
+        ]
+      });
+      
+      if (result.canceled) {
+        throw new Error('Backup operation canceled');
+      }
+      
+      const destPath = result.filePath;
+      
+      // Create the backup
+      await fs.promises.copyFile(dbPath, destPath);
+      
+      // Get file stats for the backup
+      const stats = fs.statSync(destPath);
+      
+      // Create backup history entry
+      const historyEntry = {
+        date: new Date().toISOString(),
+        path: destPath,
+        size: stats.size
+      };
+      
+      // Save to backup history
+      const historyPath = path.join(app.getPath('userData'), 'backup-history.json');
+      let history = [];
+      
+      try {
+        if (fs.existsSync(historyPath)) {
+          const historyData = await fs.promises.readFile(historyPath, 'utf8');
+          history = JSON.parse(historyData);
+        }
+      } catch (err) {
+        console.error('Error reading backup history:', err);
+        // Continue with empty history if there's an error
+      }
+      
+      // Add new entry to history
+      history.push(historyEntry);
+      
+      // Save updated history
+      await fs.promises.writeFile(historyPath, JSON.stringify(history, null, 2));
+      
+      return historyEntry;
+    } catch (error) {
+      console.error('Error creating backup:', error);
+      throw error;
+    }
+  });
+
+  ipcMain.handle('get-backup-history', async () => {
+    try {
+      const fs = require('fs');
+      const historyPath = path.join(app.getPath('userData'), 'backup-history.json');
+      
+      if (!fs.existsSync(historyPath)) {
+        return [];
+      }
+      
+      const historyData = await fs.promises.readFile(historyPath, 'utf8');
+      return JSON.parse(historyData);
+    } catch (error) {
+      console.error('Error getting backup history:', error);
+      return [];
+    }
+  });
 }
 
 app.whenReady().then(async () => {

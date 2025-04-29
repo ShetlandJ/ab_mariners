@@ -23,6 +23,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
     updateShip: (ship) => {
       return ipcRenderer.invoke('update-ship', ship);
+    },
+    // New backup-related methods
+    getDatabaseInfo: () => {
+      return ipcRenderer.invoke('get-database-info');
+    },
+    createBackup: () => {
+      return ipcRenderer.invoke('create-backup');
+    },
+    getBackupHistory: () => {
+      return ipcRenderer.invoke('get-backup-history');
     }
   }
 });

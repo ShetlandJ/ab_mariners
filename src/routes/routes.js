@@ -4,6 +4,7 @@ import ShipsView from '../components/ShipsView.vue';
 import SearchView from '../components/SearchView.vue';
 import MarinerPersonView from '../components/MarinerPersonView.vue';
 import ReportsView from '../components/ReportsView.vue';
+import BackupView from '../components/BackupView.vue';
 
 const routes = [
   {
@@ -35,6 +36,11 @@ const routes = [
     path: '/reports',
     name: 'Reports',
     component: ReportsView
+  },
+  {
+    path: '/backup',
+    name: 'Backup',
+    component: BackupView
   }
 ];
 

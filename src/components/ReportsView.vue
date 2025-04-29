@@ -13,8 +13,19 @@
       
       <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <!-- Pie Chart -->
-        <div class="h-80">
+        <div class="h-80 relative">
           <v-chart class="w-full h-full" :option="chartOption" autoresize @click="handleChartClick" />
+          <!-- Back button when showing Other details -->
+          <button 
+            v-if="showingOtherDetails" 
+            @click="returnToMainChart"
+            class="absolute top-2 left-2 px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm flex items-center shadow-md"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to main view
+          </button>
         </div>
         
         <!-- Legend and Data Summary -->
@@ -204,6 +215,8 @@ export default {
     const availableLocations = ref([]);
     const filteredMariners = ref([]);
     const filteredCount = ref(0);
+    const showingOtherDetails = ref(false);
+    const otherPlacesData = ref([]);
     
     // Load all mariners data
     const loadMarinersData = async () => {
@@ -299,20 +312,40 @@ export default {
       // Take top 9, group the rest as "Other"
       const topPlaces = sortedPlaces.slice(0, 9);
       const otherPlaces = sortedPlaces.slice(9);
+      otherPlacesData.value = otherPlaces;
       const otherCount = otherPlaces.reduce((sum, place) => sum + place.count, 0);
       
       // Prepare data for the pie chart
-      const chartData = [
-        ...topPlaces.map(place => ({ value: place.count, name: place.name }))
-      ];
+      let chartData;
+      let chartTitle;
       
-      // Only add "Other" category if there are other places
-      if (otherCount > 0) {
-        chartData.push({ value: otherCount, name: 'Other' });
+      if (showingOtherDetails.value) {
+        // When showing details of "Other" category, display those places
+        chartData = otherPlaces.map(place => ({ value: place.count, name: place.name }));
+        chartTitle = 'Other Birthplaces';
+      } else {
+        // Normal view showing top places + "Other"
+        chartData = [
+          ...topPlaces.map(place => ({ value: place.count, name: place.name }))
+        ];
+        
+        // Only add "Other" category if there are other places
+        if (otherCount > 0) {
+          chartData.push({ value: otherCount, name: 'Other' });
+        }
+        chartTitle = 'Place of Birth';
       }
       
       // Update the chart options
       chartOption.value = {
+        title: {
+          text: chartTitle,
+          left: 'center',
+          top: 0,
+          textStyle: {
+            color: isDarkMode.value ? '#fff' : '#333'
+          }
+        },
         tooltip: {
           trigger: 'item',
           formatter: '{a} <br/>{b}: {c} ({d}%)'
@@ -321,7 +354,7 @@ export default {
           type: 'scroll',
           orient: 'vertical',
           right: 10,
-          top: 20,
+          top: 30,
           bottom: 20,
           textStyle: {
             color: isDarkMode.value ? '#fff' : '#333'
@@ -384,10 +417,22 @@ export default {
     };
 
     const handleChartClick = params => {
-      if (params.name === 'Other') return;
+      if (params.name === 'Other') {
+        // When "Other" is clicked, show the breakdown of other places
+        showingOtherDetails.value = true;
+        generateChartData();
+        return;
+      }
+      
+      // For all other locations, filter by that location
       selectedLocation.value = params.name;
       currentPage.value = 1; // Reset to first page when changing location
       loadFilteredMariners();
+    };
+
+    const returnToMainChart = () => {
+      showingOtherDetails.value = false;
+      generateChartData();
     };
 
     const handleLocationSelect = () => {
@@ -491,7 +536,9 @@ export default {
       itemsPerPage: ITEMS_PER_PAGE,
       handleChartClick,
       handleLocationSelect,
-      clearLocationFilter
+      clearLocationFilter,
+      showingOtherDetails,
+      returnToMainChart
     };
   }
 }

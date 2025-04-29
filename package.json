@@ -19,6 +19,8 @@
     "@vue/devtools": "^7.7.2",
     "better-sqlite3": "^8.5.0",
     "echarts": "^5.6.0",
+    "sqlite": "^5.1.1",
+    "sqlite3": "^5.1.7",
     "vue": "^3.3.4",
     "vue-echarts": "^7.0.3",
     "vue-router": "^4.5.0",
