@@ -126,39 +126,161 @@
           <h3 class="font-medium mb-2 dark:text-white">Additional Ship Information</h3>
           <p class="text-gray-700 dark:text-gray-300 whitespace-pre-line">{{ mariner.shiplist }}</p>
         </div>
-      </div>
-
-      <!-- Financial Information -->
-      <div v-if="hasFinancialInfo" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold mb-4 dark:text-white">Financial Information</h2>
-        <div class="space-y-3">
-          <div v-if="mariner.remittence" class="flex">
-            <span class="w-32 font-medium text-gray-600 dark:text-gray-300">Remittance:</span>
-            <span class="text-gray-900 dark:text-white">{{ mariner.remittence }}</span>
+        
+        <!-- Add Ship Assignment Form -->
+        <div class="mt-6 pt-5 border-t border-gray-200 dark:border-gray-700">
+          <h3 class="text-lg font-medium mb-4 dark:text-white">Add New Ship Assignment</h3>
+          
+          <div v-if="addShipError" class="mb-4 bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-300 px-4 py-3 rounded">
+            {{ addShipError }}
           </div>
-          <div v-if="mariner.allotment" class="flex">
-            <span class="w-32 font-medium text-gray-600 dark:text-gray-300">Allotment:</span>
-            <span class="text-gray-900 dark:text-white">{{ mariner.allotment }}</span>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <!-- Ship Selection Method Toggle -->
+            <div class="col-span-1 md:col-span-2">
+              <div class="flex space-x-4">
+                <label class="inline-flex items-center">
+                  <input type="radio" v-model="shipSelectionMethod" value="search" class="form-radio text-blue-600">
+                  <span class="ml-2 text-gray-700 dark:text-gray-300">Search Existing Ships</span>
+                </label>
+                <label class="inline-flex items-center">
+                  <input type="radio" v-model="shipSelectionMethod" value="manual" class="form-radio text-blue-600">
+                  <span class="ml-2 text-gray-700 dark:text-gray-300">Enter Ship Name</span>
+                </label>
+              </div>
+            </div>
+            
+            <!-- Ship Search -->
+            <div v-if="shipSelectionMethod === 'search'" class="col-span-1 md:col-span-2">
+              <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
+                Search Ships
+              </label>
+              <div class="flex space-x-2">
+                <input 
+                  type="text" 
+                  v-model="shipSearch" 
+                  @input="searchShips"
+                  placeholder="Enter ship name to search..."
+                  class="flex-grow shadow appearance-none border rounded py-2 px-3 text-gray-700 dark:text-white dark:bg-gray-700 dark:border-gray-600 leading-tight focus:outline-none focus:shadow-outline"
+                >
+                <button 
+                  @click="searchShips" 
+                  class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline dark:bg-blue-700 dark:hover:bg-blue-600"
+                >
+                  Search
+                </button>
+              </div>
+              
+              <!-- Search Results -->
+              <div v-if="searchResults.ships && searchResults.ships.length > 0" class="mt-2 max-h-60 overflow-y-auto border rounded dark:border-gray-600">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+                      <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Designation</th>
+                      <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Select</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tr v-for="ship in searchResults.ships" :key="ship.shipID" class="hover:bg-gray-100 dark:hover:bg-gray-700">
+                      <td class="px-4 py-2 text-sm text-gray-900 dark:text-white">{{ ship.name || 'Unknown' }}</td>
+                      <td class="px-4 py-2 text-sm text-gray-500 dark:text-gray-300">{{ ship.designation || '-' }}</td>
+                      <td class="px-4 py-2 text-center">
+                        <button 
+                          @click="selectShip(ship)" 
+                          class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                        >
+                          Select
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div v-else-if="searchPerformed && (!searchResults.ships || searchResults.ships.length === 0)" class="mt-2 text-gray-600 dark:text-gray-400 text-sm">
+                No ships found matching your search.
+              </div>
+            </div>
+            
+            <!-- Manual Ship Name Entry -->
+            <div v-if="shipSelectionMethod === 'manual'" class="col-span-1 md:col-span-2">
+              <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
+                Ship Name
+              </label>
+              <input 
+                type="text" 
+                v-model="newAssignment.ship_name" 
+                placeholder="Enter ship name"
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-white dark:bg-gray-700 dark:border-gray-600 leading-tight focus:outline-none focus:shadow-outline"
+              >
+            </div>
+            
+            <!-- Selected Ship Info -->
+            <div v-if="selectedShip" class="col-span-1 md:col-span-2 bg-blue-50 dark:bg-blue-900/20 p-3 rounded mb-4">
+              <h4 class="font-medium text-gray-800 dark:text-white">Selected Ship:</h4>
+              <div class="text-gray-700 dark:text-gray-300">
+                <strong>{{ selectedShip.name || 'Unknown' }}</strong>
+                <span v-if="selectedShip.designation"> ({{ selectedShip.designation }})</span>
+              </div>
+            </div>
+            
+            <!-- Assignment Details -->
+            <div class="col-span-1 md:col-span-2">
+              <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
+                Rank
+              </label>
+              <input 
+                type="text" 
+                v-model="newAssignment.rank" 
+                placeholder="e.g. Captain, Sailor, etc."
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-white dark:bg-gray-700 dark:border-gray-600 leading-tight focus:outline-none focus:shadow-outline"
+              >
+            </div>
+            
+            <div class="col-span-1">
+              <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
+                Start Date
+              </label>
+              <input 
+                type="date" 
+                v-model="newAssignment.start_date" 
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-white dark:bg-gray-700 dark:border-gray-600 leading-tight focus:outline-none focus:shadow-outline"
+              >
+            </div>
+            
+            <div class="col-span-1">
+              <label class="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2">
+                End Date
+              </label>
+              <input 
+                type="date" 
+                v-model="newAssignment.end_date" 
+                class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 dark:text-white dark:bg-gray-700 dark:border-gray-600 leading-tight focus:outline-none focus:shadow-outline"
+              >
+            </div>
           </div>
-          <div v-if="mariner.effects" class="flex">
-            <span class="w-32 font-medium text-gray-600 dark:text-gray-300">Effects:</span>
-            <span class="text-gray-900 dark:text-white">{{ mariner.effects }}</span>
-          </div>
-          <div v-if="mariner.grenpen" class="flex">
-            <span class="w-32 font-medium text-gray-600 dark:text-gray-300">Grenpen:</span>
-            <span class="text-gray-900 dark:text-white">{{ mariner.grenpen }}</span>
+          
+          <div class="flex justify-end">
+            <button 
+              @click="saveShipAssignment" 
+              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline dark:bg-blue-700 dark:hover:bg-blue-600"
+              :disabled="addingShip || !canSaveAssignment"
+            >
+              <span v-if="addingShip">Saving...</span>
+              <span v-else>Save Assignment</span>
+            </button>
           </div>
         </div>
       </div>
-
-      <!-- Notes -->
-      <div v-if="mariner.freetext" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h2 class="text-xl font-semibold mb-4 dark:text-white">Notes</h2>
-        <p class="text-gray-700 dark:text-gray-300 whitespace-pre-line">{{ mariner.freetext }}</p>
-      </div>
     </div>
 
-    <div class="mt-6 flex justify-end">
+    <div class="mt-6 flex justify-end space-x-3">
+      <button 
+        @click="deleteMariner" 
+        class="btn bg-red-600 hover:bg-red-700 text-white dark:bg-red-700 dark:hover:bg-red-600 dark:text-white"
+      >
+        Delete Mariner
+      </button>
       <button 
         @click="editMariner" 
         class="btn btn-primary dark:bg-blue-700 dark:hover:bg-blue-600 dark:text-white"
@@ -174,6 +296,14 @@
       @close="closeEditModal" 
       @saved="handleMarinerSaved"
     />
+
+    <!-- Delete Mariner Modal -->
+    <DeleteMarinerModal
+      :show="showDeleteModal"
+      :mariner="mariner"
+      @close="closeDeleteModal"
+      @deleted="handleMarinerDeleted"
+    />
   </div>
 </template>
 
@@ -182,11 +312,13 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import database from '../services/database';
 import EditMarinerModal from './EditMarinerModal.vue';
+import DeleteMarinerModal from './DeleteMarinerModal.vue';
 
 export default {
   name: 'MarinerPersonView',
   components: {
-    EditMarinerModal
+    EditMarinerModal,
+    DeleteMarinerModal
   },
   setup() {
     const route = useRoute();
@@ -195,6 +327,20 @@ export default {
     const loading = ref(true);
     const error = ref(null);
     const showEditModal = ref(false);
+    const showDeleteModal = ref(false);
+    const addShipError = ref(null);
+    const addingShip = ref(false);
+    const shipSelectionMethod = ref('search');
+    const shipSearch = ref('');
+    const searchResults = ref({ ships: [] });
+    const searchPerformed = ref(false);
+    const selectedShip = ref(null);
+    const newAssignment = ref({
+      ship_name: '',
+      rank: '',
+      start_date: '',
+      end_date: ''
+    });
 
     const marinerId = computed(() => route.params.id);
     const marinerName = computed(() => {
@@ -215,15 +361,21 @@ export default {
                 mariner.value.effects || mariner.value.grenpen);
     });
 
+    const canSaveAssignment = computed(() => {
+      if (shipSelectionMethod.value === 'search') {
+        return !!selectedShip.value && newAssignment.value.rank && newAssignment.value.start_date;
+      }
+      return newAssignment.value.ship_name && newAssignment.value.rank && newAssignment.value.start_date;
+    });
+
     function formatDate(dateStr) {
       if (!dateStr) return '';
       try {
-        // Try to parse the date and format it nicely
         const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return dateStr; // If invalid, return as is
+        if (isNaN(date.getTime())) return dateStr;
         return date.toLocaleDateString();
       } catch (e) {
-        return dateStr; // If error, return as is
+        return dateStr;
       }
     }
 
@@ -248,7 +400,6 @@ export default {
     }
 
     function goBack() {
-      // Navigate back to mariners list with the preserved query parameters
       router.push({
         name: 'Mariners',
         query: {
@@ -267,8 +418,63 @@ export default {
     }
 
     async function handleMarinerSaved(updatedMariner) {
-      // Reload the mariner data after an update
       await loadMariner();
+    }
+
+    async function searchShips() {
+      try {
+        searchPerformed.value = true;
+        const results = await database.searchShips(shipSearch.value);
+        searchResults.value = results;
+      } catch (err) {
+        console.error('Error searching ships:', err);
+        searchResults.value = { ships: [] };
+      }
+    }
+
+    function selectShip(ship) {
+      selectedShip.value = ship;
+      newAssignment.value.ship_name = ship.name;
+    }
+
+    async function saveShipAssignment() {
+      try {
+        addingShip.value = true;
+        addShipError.value = null;
+
+        const assignment = {
+          ...newAssignment.value,
+          ship_id: selectedShip.value ? selectedShip.value.shipID : null
+        };
+
+        await database.addShipAssignment(marinerId.value, assignment);
+        await loadMariner();
+        newAssignment.value = {
+          ship_name: '',
+          rank: '',
+          start_date: '',
+          end_date: ''
+        };
+        selectedShip.value = null;
+        shipSelectionMethod.value = 'search';
+      } catch (err) {
+        console.error('Error saving ship assignment:', err);
+        addShipError.value = 'Failed to save ship assignment: ' + (err.message || 'Unknown error');
+      } finally {
+        addingShip.value = false;
+      }
+    }
+
+    function deleteMariner() {
+      showDeleteModal.value = true;
+    }
+
+    function closeDeleteModal() {
+      showDeleteModal.value = false;
+    }
+
+    async function handleMarinerDeleted() {
+      router.push({ name: 'Mariners' });
     }
 
     onMounted(loadMariner);
@@ -286,7 +492,23 @@ export default {
       editMariner,
       showEditModal,
       closeEditModal,
-      handleMarinerSaved
+      handleMarinerSaved,
+      addShipError,
+      addingShip,
+      shipSelectionMethod,
+      shipSearch,
+      searchResults,
+      searchPerformed,
+      selectedShip,
+      newAssignment,
+      canSaveAssignment,
+      searchShips,
+      selectShip,
+      saveShipAssignment,
+      deleteMariner,
+      showDeleteModal,
+      closeDeleteModal,
+      handleMarinerDeleted
     };
   }
 }

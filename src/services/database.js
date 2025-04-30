@@ -19,6 +19,10 @@ const database = {
   async createMariner(mariner) {
     return window.electronAPI.database.createMariner(mariner);
   },
+  
+  async deleteMariner(id) {
+    return window.electronAPI.database.deleteMariner(id);
+  },
 
   // Ship methods
   getShipsCount(searchTerm) {
@@ -31,6 +35,15 @@ const database = {
 
   async updateShip(ship) {
     return window.electronAPI.database.updateShip(ship);
+  },
+  
+  // Ship assignment methods
+  async addShipAssignment(personId, assignment) {
+    return window.electronAPI.database.addShipAssignment(personId, assignment);
+  },
+  
+  async searchShips(searchTerm) {
+    return window.electronAPI.database.getShipsPaginated(1, 10, searchTerm);
   }
 };
 

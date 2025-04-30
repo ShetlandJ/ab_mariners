@@ -355,6 +355,42 @@ function setupIpcHandlers() {
     }
   });
 
+  // Add delete mariner handler
+  ipcMain.handle('delete-mariner', async (event, id) => {
+    try {
+      if (!id) {
+        throw new Error('Invalid mariner ID: ID is required');
+      }
+
+      // Start a transaction to ensure data consistency
+      await db.run('BEGIN TRANSACTION');
+      
+      try {
+        // First delete all ship assignments for this mariner
+        await db.run('DELETE FROM person_ship WHERE person_id = ?', [id]);
+        
+        // Then delete the mariner
+        const result = await db.run('DELETE FROM person WHERE person_id = ?', [id]);
+        
+        // Commit the transaction
+        await db.run('COMMIT');
+        
+        return { 
+          success: true, 
+          deletedCount: result.changes,
+          id 
+        };
+      } catch (error) {
+        // Rollback in case of error
+        await db.run('ROLLBACK');
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error deleting mariner:', error);
+      throw error;
+    }
+  });
+
   // Ship-related handlers
   ipcMain.handle('get-ships-count', async (event, searchTerm = '') => {
     try {
@@ -376,6 +412,68 @@ function setupIpcHandlers() {
     } catch (error) {
       console.error('Error counting ships:', error);
       return 0;
+    }
+  });
+
+  // Add new ship assignment handler
+  ipcMain.handle('add-ship-assignment', async (event, personId, assignment) => {
+    try {
+      console.log('Adding ship assignment:', { personId, assignment });
+      
+      if (!personId) {
+        throw new Error('Person ID is required');
+      }
+      
+      let shipId = assignment.ship_id;
+      
+      // If no ship_id but we have a ship_name, try to find or create the ship
+      if (!shipId && assignment.ship_name) {
+        // Try to find an existing ship with this name
+        const existingShip = await db.get(
+          'SELECT shipID FROM ship WHERE LOWER(name) = ?', 
+          [assignment.ship_name.toLowerCase()]
+        );
+        
+        if (existingShip) {
+          shipId = existingShip.shipID;
+        } else {
+          // Create a new ship
+          const result = await db.run(
+            'INSERT INTO ship (name, designation) VALUES (?, ?)',
+            [assignment.ship_name, assignment.designation || null]
+          );
+          shipId = result.lastID;
+        }
+      }
+      
+      if (!shipId) {
+        throw new Error('Ship ID or name is required');
+      }
+      
+      // Now create the person_ship relationship
+      const result = await db.run(
+        'INSERT INTO person_ship (person_id, ship_id, rank, start_date, end_date) VALUES (?, ?, ?, ?, ?)',
+        [
+          personId,
+          shipId,
+          assignment.rank || null,
+          assignment.start_date || null,
+          assignment.end_date || null
+        ]
+      );
+      
+      // Return the newly created relationship with ship details
+      const newAssignment = await db.get(`
+        SELECT ps.*, s.name as ship_name, s.designation
+        FROM person_ship ps
+        LEFT JOIN ship s ON ps.ship_id = s.shipID
+        WHERE ps.id = ?
+      `, [result.lastID]);
+      
+      return newAssignment;
+    } catch (error) {
+      console.error('Error adding ship assignment:', error);
+      throw error;
     }
   });
 

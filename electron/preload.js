@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     createMariner: (mariner) => {
       return ipcRenderer.invoke('create-mariner', mariner);
     },
+    deleteMariner: (id) => {
+      return ipcRenderer.invoke('delete-mariner', id);
+    },
     // New ship-related methods
     getShipsCount: (searchTerm) => {
       return ipcRenderer.invoke('get-ships-count', searchTerm);
@@ -26,6 +29,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
     updateShip: (ship) => {
       return ipcRenderer.invoke('update-ship', ship);
+    },
+    // Ship assignment method
+    addShipAssignment: (personId, assignment) => {
+      return ipcRenderer.invoke('add-ship-assignment', personId, assignment);
     },
     // New backup-related methods
     getDatabaseInfo: () => {
