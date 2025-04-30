@@ -3,7 +3,9 @@
     <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
       <!-- Header -->
       <div class="flex items-center justify-between p-4 border-b dark:border-gray-700">
-        <h2 class="text-xl font-bold dark:text-white">Edit Mariner: {{ mariner.surname }}, {{ mariner.forename }}</h2>
+        <h2 class="text-xl font-bold dark:text-white">
+          {{ isCreating ? 'Create New Mariner' : `Edit Mariner: ${mariner.surname}, ${mariner.forename}` }}
+        </h2>
         <button @click="closeModal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -219,7 +221,7 @@
               type="submit" 
               class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
             >
-              Save Changes
+              {{ isCreating ? 'Create Mariner' : 'Save Changes' }}
             </button>
           </div>
         </form>
@@ -229,7 +231,7 @@
 </template>
 
 <script>
-import { ref, reactive, watchEffect } from 'vue';
+import { ref, reactive, watchEffect, computed } from 'vue';
 import database from '../services/database';
 
 export default {
@@ -242,6 +244,10 @@ export default {
     mariner: {
       type: Object,
       required: true
+    },
+    isCreating: {
+      type: Boolean,
+      default: false
     }
   },
   emits: ['close', 'saved'],
@@ -301,19 +307,27 @@ export default {
         // Copy form values to a new object
         const updatedMariner = { ...form };
         
-        // Add the person_id (which doesn't change)
-        updatedMariner.person_id = props.mariner.person_id;
-        
-        // Update the mariner in the database
-        await database.updateMariner(updatedMariner);
-        
-        // Emit saved event
-        emit('saved', updatedMariner);
+        if (props.isCreating) {
+          // Create new mariner
+          const newMariner = await database.createMariner(updatedMariner);
+          
+          // Emit saved event with the new mariner
+          emit('saved', newMariner);
+        } else {
+          // Add the person_id (which doesn't change) for updates
+          updatedMariner.person_id = props.mariner.person_id;
+          
+          // Update the mariner in the database
+          await database.updateMariner(updatedMariner);
+          
+          // Emit saved event
+          emit('saved', updatedMariner);
+        }
         
         // Close the modal
         closeModal();
       } catch (error) {
-        console.error('Failed to update mariner:', error);
+        console.error(`Failed to ${props.isCreating ? 'create' : 'update'} mariner:`, error);
         // You could add error handling here, like displaying an error message
       }
     }

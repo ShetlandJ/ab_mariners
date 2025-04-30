@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updateMariner: (mariner) => {
       return ipcRenderer.invoke('update-mariner', mariner);
     },
+    createMariner: (mariner) => {
+      return ipcRenderer.invoke('create-mariner', mariner);
+    },
     // New ship-related methods
     getShipsCount: (searchTerm) => {
       return ipcRenderer.invoke('get-ships-count', searchTerm);

@@ -35,7 +35,8 @@ const skipTitleCase = [
 const columnMapping = {
     'year of birth': 'year_of_birth',
     'year of death': 'year_of_death',
-    'place of birth': 'place_of_birth'
+    'place of birth': 'place_of_birth',
+    'person id': 'person_id'  // Add mapping for person id with space
     // Add other mappings if needed
 };
 
@@ -105,14 +106,14 @@ async function importPersons(db, useTransaction = true) {
                 place_of_birth, remittence, allotment, effects, grenpen,
                 freetext, cod, appdate1, entdate1, ship1, where1,
                 prest1, appdate2, entdate2, ship2, where2, prest2,
-                appdate3, entdate3, ship3, where3, prest3, shiplist
+                appdate3, entdate3, ship3, where3, prest3, shiplist, died_at_sea
             ) VALUES (
                 @person_id, @surname, @forename, @alias1surname, @alias1forename,
                 @alias2surname, @alias2forename, @year_of_birth, @year_of_death,
                 @place_of_birth, @remittence, @allotment, @effects, @grenpen,
                 @freetext, @cod, @appdate1, @entdate1, @ship1, @where1,
                 @prest1, @appdate2, @entdate2, @ship2, @where2, @prest2,
-                @appdate3, @entdate3, @ship3, @where3, @prest3, @shiplist
+                @appdate3, @entdate3, @ship3, @where3, @prest3, @shiplist, @died_at_sea
             )
         `);
 
@@ -122,9 +123,18 @@ async function importPersons(db, useTransaction = true) {
         // Process each row
         rows.forEach((row, index) => {
             try {
+                // Check for PersonID or person_id in the Excel
+                // Add 'person id' to the list of possible ID column names
+                const personId = row.PersonID || row.personID || row.person_id || row.PERSONID || row['person id'];
+                
+                if (!personId) {
+                    console.warn(`No PersonID found for row ${index + 1}, skipping record`);
+                    return;
+                }
+
                 // Ensure all required fields exist with defaults
                 const defaultRow = {
-                    person_id: index + 1, // Fallback ID if none provided
+                    person_id: personId, // Use the ID from the Excel file
                     surname: null,
                     forename: null,
                     alias1surname: null,
@@ -155,7 +165,8 @@ async function importPersons(db, useTransaction = true) {
                     ship3: null,
                     where3: null,
                     prest3: null,
-                    shiplist: null
+                    shiplist: null,
+                    died_at_sea: null
                 };
 
                 // Clean and transform the data
@@ -166,7 +177,7 @@ async function importPersons(db, useTransaction = true) {
                     let value = row[key] === '' ? null : row[key];
                     
                     // Apply title case to any string value that isn't in skipTitleCase
-                    if (value && typeof value === 'string' && !skipTitleCase.includes(mappedKey)) {
+                    if (value && typeof value === 'string' && !skipTitleCase.includes(mappedKey) && stringFields.includes(mappedKey)) {
                         value = toTitleCase(String(value));
                     }
                     
@@ -189,22 +200,22 @@ async function importPersons(db, useTransaction = true) {
                     // Try to specifically check if the problematic columns exist
                     console.log('Year of birth exists?', 'year of birth' in row);
                     console.log('Year of death exists?', 'year of death' in row);
+                    console.log('Person ID exists?', 'person id' in row);
                     
                     // Check case-sensitivity
                     const columnNames = Object.keys(row);
                     const birthColumn = columnNames.find(col => col.toLowerCase() === 'year of birth');
                     const deathColumn = columnNames.find(col => col.toLowerCase() === 'year of death');
+                    const idColumn = columnNames.find(col => col.toLowerCase() === 'person id');
                     
                     console.log('Actual year of birth column:', birthColumn);
                     console.log('Actual year of death column:', deathColumn);
+                    console.log('Actual person id column:', idColumn);
                 }
 
                 // Debugging the mapping
                 if (index === 0) {
                     console.log('After mapping:', cleanRow);
-                }
-
-                if (index === 0) {
                     console.log('Sample processed row:', finalRow);
                 }
 

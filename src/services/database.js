@@ -16,6 +16,10 @@ const database = {
     return window.electronAPI.database.updateMariner(mariner);
   },
 
+  async createMariner(mariner) {
+    return window.electronAPI.database.createMariner(mariner);
+  },
+
   // Ship methods
   getShipsCount(searchTerm) {
     return window.electronAPI.database.getShipsCount(searchTerm);

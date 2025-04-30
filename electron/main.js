@@ -319,6 +319,42 @@ function setupIpcHandlers() {
     }
   });
 
+  ipcMain.handle('create-mariner', async (event, mariner) => {
+    try {
+      // Create SQL INSERT statement dynamically from the mariner object
+      const fields = Object.keys(mariner)
+        .filter(key => mariner[key] !== undefined && mariner[key] !== null && mariner[key] !== '')
+        .join(', ');
+
+      const placeholders = Object.keys(mariner)
+        .filter(key => mariner[key] !== undefined && mariner[key] !== null && mariner[key] !== '')
+        .map(() => '?')
+        .join(', ');
+
+      const values = Object.keys(mariner)
+        .filter(key => mariner[key] !== undefined && mariner[key] !== null && mariner[key] !== '')
+        .map(key => mariner[key]);
+
+      // If there are no valid fields, handle the error
+      if (!fields) {
+        throw new Error('No valid fields provided for creating a mariner');
+      }
+
+      const sql = `INSERT INTO person (${fields}) VALUES (${placeholders})`;
+      
+      // Execute the insert
+      const result = await db.run(sql, values);
+      
+      // Get the newly created mariner with the inserted ID
+      const newMariner = await db.get('SELECT * FROM person WHERE person_id = ?', [result.lastID]);
+      
+      return newMariner;
+    } catch (error) {
+      console.error('Error creating mariner:', error);
+      throw error;
+    }
+  });
+
   // Ship-related handlers
   ipcMain.handle('get-ships-count', async (event, searchTerm = '') => {
     try {

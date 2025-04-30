@@ -38,10 +38,20 @@ module.exports = function importPersonShips(db) {
         const workbook = XLSX.readFile(excelPath);
         const sheetName = workbook.SheetNames[0];
         const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-        console.log('Raw first row:', rows[0]); // Debug column names
-        console.log('Available columns:', Object.keys(rows[0]));  // Debug available columns
+        console.log(`Person-Ship Excel file read successfully. Found ${rows.length} rows.`);
+
+        // Log the first row to see available columns
+        if (rows.length > 0) {
+            console.log('Person-Ship Excel column names:', Object.keys(rows[0]));
+            console.log('First person-ship row sample:', JSON.stringify(rows[0], null, 2));
+        }
 
         db.prepare('BEGIN TRANSACTION').run();
+
+        // Clear existing person_ship data
+        console.log('Clearing existing person_ship data...');
+        const deleted = db.prepare('DELETE FROM person_ship').run();
+        console.log(`Deleted ${deleted.changes} existing person_ship records`);
 
         const insert = db.prepare(`
             INSERT INTO person_ship (person_id, ship_id, rank, start_date, end_date)
@@ -54,33 +64,31 @@ module.exports = function importPersonShips(db) {
 
         rows.forEach((row, index) => {
             try {
-                // Use "C" column as person_id, fallback to other possibilities
-                const personId = row['C'] || row['person id'] || row['Person ID'] || row['personID'];
-                const shipId = row['ship ID'] || row['Ship ID'] || row['shipID'];
-                
-                if (index === 0) {
-                    console.log('Column debug:', {
-                        foundPersonId: personId,
-                        foundShipId: shipId,
-                        availableColumns: Object.keys(row),
-                        rawRow: row
-                    });
+                // Updated to match the actual column names in the Excel file
+                // 'C' for person_id and 'ship ID' (with a space) for ship_id
+                const personId = row.C || row.person_id || row.PersonID || row.personID || row.PERSONID || 
+                               row['Person ID'] || row['Person Id'] || row['person id'];
+                               
+                const shipId = row['ship ID'] || row.ship_id || row.ShipID || row.shipID || row.SHIPID || 
+                             row['Ship ID'] || row['Ship Id'] || row['ship id'];
+
+                if (!personId || !shipId) {
+                    console.warn(`Missing personId or shipId on row ${index + 1}, skipping record.`);
+                    skippedCount++;
+                    return;
                 }
 
                 const cleanRow = {
                     person_id: parseInt(personId),
                     ship_id: parseInt(shipId),
-                    rank: toTitleCase(String(row['rank'])),
-                    start_date: parsePartialDate(row['startdate']),
-                    end_date: parsePartialDate(row['enddate'])
+                    rank: row.rank ? toTitleCase(String(row.rank)) : null,
+                    start_date: row.startdate ? parsePartialDate(row.startdate) : null,
+                    end_date: row.enddate ? parsePartialDate(row.enddate) : null
                 };
 
-                // Validate required fields
-                if (!cleanRow.person_id || isNaN(cleanRow.person_id)) {
-                    throw new Error(`Invalid person_id: ${personId} from row: ${JSON.stringify(row)}`);
-                }
-
+                // Debug first row to verify mappings
                 if (index === 0) {
+                    console.log('Example row mapping:');
                     console.log('Raw Excel row:', row);
                     console.log('Mapped and cleaned row:', cleanRow);
                 }
@@ -95,7 +103,8 @@ module.exports = function importPersonShips(db) {
                 errorCount++;
                 console.error(`Error on relationship row ${index + 1}:`, err.message);
                 console.error('Problem row data:', JSON.stringify(row, null, 2));
-                throw err;
+                // Continue with other rows instead of failing entirely
+                // throw err;
             }
         });
 
