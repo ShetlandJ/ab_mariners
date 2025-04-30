@@ -54,6 +54,58 @@ export const birthplaces = {
 };
 
 /**
+ * Maps specific birthplaces to their regional divisions in the GeoJSON map
+ * This allows aggregating specific birthplaces to display on a regional choropleth map
+ */
+export const shetlandPlaceBuckets = {
+  LerwickNorth: [
+    "tingwall",
+    "weisdale",
+    "whiteness"
+  ],
+  LerwickSouth: [
+    "quarff",
+    "cunningsburgh",
+    "sandwick",
+    "dunrossness"
+  ],
+  NorthIsles: [
+    "unst",
+    "fetlar",
+    "yell",
+    "yell-east",
+    "yell-mid",
+    "yell-north",
+    "yell-west",
+    "skerries"
+  ],
+  ShetlandCentral: [
+    "lerwick",
+    "tingwall",
+    "nesting",
+    "lunnasting",
+    "delting"
+  ],
+  ShetlandNorth: [
+    "northmavine"
+  ],
+  ShetlandSouth: [
+    "fair-isle"
+  ],
+  ShetlandWest: [
+    "aithsting",
+    "sandness",
+    "sandsting",
+    "burra",
+    "trondra",
+    "walls",
+    "papa-stour",
+    "foula",
+    "oxna"
+  ]
+};
+
+/**
  * Maps all possible raw input values to their standardized values
  * This handles typos, variants, and uncertain entries
  */
@@ -129,7 +181,30 @@ export function getStandardizedPlace(rawPlace) {
   // Get the standardized value from the mapping
   const standardizedValue = birthplaceMapping[normalizedPlace];
   
-  if (!standardizedValue) return null;
+  // For debugging - log the raw and normalized place values
+  console.log(`Trying to standardize: "${rawPlace}" -> normalized as "${normalizedPlace}"`);
+  console.log(`Mapping found: ${standardizedValue ? `"${standardizedValue}"` : 'none'}`);
+  
+  if (!standardizedValue) {
+    // Try partial matching if exact match fails
+    const keys = Object.keys(birthplaceMapping);
+    // Check if the normalized place contains any of the mapping keys
+    for (const key of keys) {
+      if (normalizedPlace.includes(key) || key.includes(normalizedPlace)) {
+        console.log(`Partial match found: "${normalizedPlace}" contains or is contained in "${key}"`);
+        const partialMatch = birthplaceMapping[key];
+        
+        // Determine which group the place belongs to
+        const shetlandMatch = birthplaces.shetland.find(place => place.value === partialMatch);
+        if (shetlandMatch) return { ...shetlandMatch, group: 'shetland' };
+        
+        const otherMatch = birthplaces.other.find(place => place.value === partialMatch);
+        if (otherMatch) return { ...otherMatch, group: 'other' };
+      }
+    }
+    
+    return null;
+  }
   
   // Determine which group the place belongs to
   const shetlandMatch = birthplaces.shetland.find(place => place.value === standardizedValue);
@@ -137,6 +212,27 @@ export function getStandardizedPlace(rawPlace) {
   
   const otherMatch = birthplaces.other.find(place => place.value === standardizedValue);
   if (otherMatch) return { ...otherMatch, group: 'other' };
+  
+  return null;
+}
+
+/**
+ * Finds the region for a given place
+ * @param {string} placeValue - The standardized place value
+ * @returns {string|null} - The region name or null if not found
+ */
+export function getRegionForPlace(placeValue) {
+  if (!placeValue) return null;
+  
+  // Convert to lowercase for case-insensitive comparison
+  const normalizedPlace = placeValue.toLowerCase();
+  
+  for (const [region, places] of Object.entries(shetlandPlaceBuckets)) {
+    // Check if the normalized place matches any place in this region (case-insensitive)
+    if (places.some(place => place.toLowerCase() === normalizedPlace)) {
+      return region;
+    }
+  }
   
   return null;
 }
@@ -185,8 +281,10 @@ export function getDistinctPlaces(mariners) {
 
 export default {
   birthplaces,
+  shetlandPlaceBuckets,
   birthplaceMapping,
   getStandardizedPlace,
+  getRegionForPlace,
   getGroupedBirthplaces,
   getDistinctPlaces
 };

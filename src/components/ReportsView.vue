@@ -87,6 +87,12 @@
     <div class="bg-blue-100 dark:bg-gray-800 rounded-lg shadow p-6">
       <h2 class="text-xl font-semibold mb-4 dark:text-white">Dataset Overview</h2>
       
+      <!-- Map of Shetland -->
+      <div class="bg-blue-50 dark:bg-gray-700 p-4 rounded-lg mb-6">
+        <h3 class="text-lg font-medium text-blue-700 dark:text-blue-300 mb-4">Shetland Map</h3>
+        <div id="shetland-map" class="h-96 w-full rounded-lg shadow-inner"></div>
+      </div>
+      
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div class="bg-blue-50 dark:bg-gray-700 p-4 rounded-lg">
           <h3 class="text-lg font-medium text-blue-700 dark:text-blue-300 mb-1">Total Mariners</h3>
@@ -182,9 +188,9 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, watch, nextTick, onUnmounted } from 'vue';
 import database from '../services/database';
-import { getStandardizedPlace } from '../data/birthplaces';
+import { getStandardizedPlace, birthplaces, shetlandPlaceBuckets, getRegionForPlace } from '../data/birthplaces';
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { PieChart } from 'echarts/charts';
@@ -196,6 +202,8 @@ import {
 } from 'echarts/components';
 import VChart from 'vue-echarts';
 import { usePagination } from '../composables/usePagination';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 // Register ECharts components
 use([
@@ -226,11 +234,254 @@ export default {
     const showingOtherDetails = ref(false);
     const otherPlacesData = ref([]);
     
+    // Map related variables
+    const shetlandMap = ref(null);
+    const mapInitialized = ref(false);
+    
+    // Function to initialize the Leaflet map and load GeoJSON data
+    const initializeMap = async () => {
+      if (mapInitialized.value) return;
+      
+      // Make sure mariners data is loaded before initializing the map
+      if (mariners.value.length === 0) {
+        console.log('Waiting for mariners data to load before initializing map');
+        await loadMarinersData();
+      }
+      
+      // Give Vue time to render the map container
+      await nextTick();
+      
+      // Make sure container exists
+      const mapContainer = document.getElementById('shetland-map');
+      if (!mapContainer) return;
+      
+      // Initialize map centered on Shetland Islands
+      shetlandMap.value = L.map('shetland-map').setView([60.3, -1.3], 8);
+      
+      // Add OpenStreetMap tile layer
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 18
+      }).addTo(shetlandMap.value);
+      
+      try {
+        // Count mariners by regional bucket for the choropleth data
+        const regionCounts = {};
+        const birthplaceCounts = {};
+        
+        // Initialize counts for all regions
+        Object.keys(shetlandPlaceBuckets).forEach(region => {
+          regionCounts[region] = 0;
+        });
+        
+        // Debug: Log standardized places
+        const standardizedPlaces = new Set();
+        
+        console.log(`Processing ${mariners.value.length} mariners for the map`);
+        
+        // Count mariners by specific birthplace
+        mariners.value.forEach(mariner => {
+          if (mariner.place_of_birth) {
+            const standardizedPlace = getStandardizedPlace(mariner.place_of_birth);
+            
+            if (standardizedPlace && standardizedPlace.group === 'shetland') {
+              const placeValue = standardizedPlace.value;
+              standardizedPlaces.add(placeValue);
+              birthplaceCounts[placeValue] = (birthplaceCounts[placeValue] || 0) + 1;
+              
+              // Check which region this place belongs to
+              for (const [region, places] of Object.entries(shetlandPlaceBuckets)) {
+                if (places.includes(placeValue)) {
+                  regionCounts[region] += 1;
+                  console.log(`Added ${placeValue} to region ${region}, count now: ${regionCounts[region]}`);
+                  break; // Place can only belong to one region
+                }
+              }
+            }
+          }
+        });
+        
+        console.log('Region counts:', regionCounts);
+        console.log('Standardized places found in data:', Array.from(standardizedPlaces));
+        console.log('All available place buckets:', shetlandPlaceBuckets);
+        console.log('Birthplace counts:', birthplaceCounts);
+        
+        // Find the maximum count for scaling the colors
+        const maxCount = Math.max(...Object.values(regionCounts), 1); // Avoid division by zero
+        
+        // Fetch the GeoJSON data
+        const response = await fetch('../../data/shetland.json');
+        const geojsonData = await response.json();
+        
+        console.log('GeoJSON data loaded:', geojsonData.type, 'with', 
+          geojsonData.features ? geojsonData.features.length : 0, 'features');
+        
+        // Function to get color based on mariner count
+        const getColor = (count) => {
+          const intensity = count / maxCount;
+          
+          // Choose colors that work well in both light and dark mode
+          if (intensity === 0) return '#e5e7eb'; // gray-200
+          if (intensity < 0.2) return '#dbeafe'; // blue-100
+          if (intensity < 0.4) return '#bfdbfe'; // blue-200
+          if (intensity < 0.6) return '#93c5fd'; // blue-300
+          if (intensity < 0.8) return '#60a5fa'; // blue-400
+          return '#3b82f6'; // blue-500
+        };
+        
+        // Add the GeoJSON to the map with choropleth styling
+        const geoJsonLayer = L.geoJSON(geojsonData, {
+          style: function(feature) {
+            // Get the region name from the feature properties
+            const rawRegionName = feature.properties.NAME_4 || feature.properties.NAME_3;
+            
+            if (!rawRegionName) {
+              return {
+                fillColor: '#e5e7eb', // Default gray for unknown regions
+                weight: 2,
+                opacity: 0.8,
+                color: '#3182ce',
+                dashArray: '3',
+                fillOpacity: 0.6
+              };
+            }
+            
+            // Try to match the region name case-insensitively
+            const regionName = Object.keys(shetlandPlaceBuckets).find(
+              bucket => bucket.toLowerCase() === rawRegionName.toLowerCase() ||
+                        bucket.replace(/([A-Z])/g, ' $1').trim().toLowerCase() === rawRegionName.toLowerCase() ||
+                        rawRegionName.replace(/\s+/g, '').toLowerCase() === bucket.toLowerCase()
+            ) || rawRegionName;
+            
+            console.log(`Matching: GeoJSON="${rawRegionName}" -> placeBucket="${regionName}"`);
+            
+            // Get the count for this region
+            const count = regionCounts[regionName] || 0;
+            
+            return {
+              fillColor: getColor(count),
+              weight: 2,
+              opacity: 0.8,
+              color: '#3182ce', // blue-600
+              dashArray: count > 0 ? '0' : '3',
+              fillOpacity: 0.6
+            };
+          },
+          onEachFeature: (feature, layer) => {
+            if (feature.properties) {
+              const rawRegionName = feature.properties.NAME_4 || feature.properties.NAME_3;
+              if (rawRegionName) {
+                // Try to match the region name case-insensitively
+                const regionName = Object.keys(shetlandPlaceBuckets).find(
+                  bucket => bucket.toLowerCase() === rawRegionName.toLowerCase() ||
+                            bucket.replace(/([A-Z])/g, ' $1').trim().toLowerCase() === rawRegionName.toLowerCase() ||
+                            rawRegionName.replace(/\s+/g, '').toLowerCase() === bucket.toLowerCase()
+                ) || rawRegionName;
+                
+                const count = regionCounts[regionName] || 0;
+                
+                // Create a list of places in this region
+                let placesList = '';
+                if (shetlandPlaceBuckets[regionName]) {
+                  const places = shetlandPlaceBuckets[regionName];
+                  const placesWithCounts = places.map(place => {
+                    const localCount = birthplaceCounts[place] || 0;
+                    const placeName = birthplaces.shetland.find(p => p.value === place)?.label || place;
+                    return `${placeName}: ${localCount}`;
+                  });
+                  
+                  // Only show places with mariners
+                  const filteredPlaces = placesWithCounts.filter(p => !p.endsWith(': 0'));
+                  if (filteredPlaces.length > 0) {
+                    placesList = '<br><strong>Places:</strong><br>• ' + 
+                      filteredPlaces.join('<br>• ');
+                  }
+                }
+                
+                // Create the popup content
+                const popupContent = `
+                  <div>
+                    <strong>${regionName}</strong><br>
+                    Total mariners: <strong>${count}</strong>
+                    ${placesList}
+                  </div>
+                `;
+                
+                layer.bindPopup(popupContent);
+              }
+            }
+          }
+        }).addTo(shetlandMap.value);
+        
+        // Add a legend to the map
+        const legend = L.control({ position: 'bottomright' });
+        
+        legend.onAdd = function(map) {
+          const div = L.DomUtil.create('div', 'info legend');
+          const grades = [0, Math.ceil(maxCount * 0.2), Math.ceil(maxCount * 0.4), 
+                         Math.ceil(maxCount * 0.6), Math.ceil(maxCount * 0.8)];
+          
+          // Add a title to the legend
+          div.innerHTML = '<h4 style="margin:0 0 5px 0;font-weight:bold;">Mariners Born</h4>';
+          
+          // Create legend items
+          for (let i = 0; i < grades.length; i++) {
+            const from = grades[i];
+            const to = grades[i + 1] || maxCount + 1;
+            
+            div.innerHTML +=
+              '<i style="background:' + getColor(from + 1) + '; width:18px; height:18px; float:left; margin-right:8px; opacity:0.7;"></i> ' +
+              from + (to ? '&ndash;' + (to - 1) : '+') + '<br>';
+          }
+          
+          // Add some styling
+          div.style.background = 'white';
+          div.style.padding = '6px 8px';
+          div.style.borderRadius = '5px';
+          div.style.boxShadow = '0 0 15px rgba(0,0,0,0.2)';
+          div.style.lineHeight = '18px';
+          div.style.color = '#555';
+          
+          return div;
+        };
+        
+        legend.addTo(shetlandMap.value);
+        
+        // Fit the map bounds to the GeoJSON layer
+        if (geoJsonLayer.getBounds) {
+          shetlandMap.value.fitBounds(geoJsonLayer.getBounds());
+        } else {
+          // Fall back to a fixed view of Shetland if bounds can't be determined
+          shetlandMap.value.setView([60.3, -1.3], 8);
+        }
+        
+        mapInitialized.value = true;
+        console.log('Shetland choropleth map initialized with GeoJSON data');
+      } catch (error) {
+        console.error('Error loading Shetland GeoJSON data:', error);
+        // Fall back to a fixed view if there's an error
+        shetlandMap.value.setView([60.3, -1.3], 8);
+      }
+    };
+    
+    // Cleanup function to destroy the map when component is unmounted
+    const destroyMap = () => {
+      if (shetlandMap.value) {
+        shetlandMap.value.remove();
+        shetlandMap.value = null;
+        mapInitialized.value = false;
+        console.log('Shetland map destroyed');
+      }
+    };
+    
     // Track dark mode state through direct DOM observation
     const isDarkModeActive = ref(document.documentElement.classList.contains('dark'));
     
     // Create a MutationObserver to watch for dark mode class changes
     onMounted(() => {
+      loadMarinersData();
+      initializeMap();
+      
       // Set up the observer to watch the html element for class changes
       const observer = new MutationObserver(mutations => {
         mutations.forEach(mutation => {
@@ -257,6 +508,11 @@ export default {
         attributes: true, 
         attributeFilter: ['class']
       });
+    });
+    
+    // Clean up on component unmount
+    onUnmounted(() => {
+      destroyMap();
     });
 
     // Load all mariners data
@@ -541,8 +797,6 @@ export default {
       if (totalMariners.value === 0) return 0;
       return Math.round((otherCount.value / totalMariners.value) * 100);
     });
-    
-    onMounted(loadMarinersData);
     
     return {
       isLoading,
