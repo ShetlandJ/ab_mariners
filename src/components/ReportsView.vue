@@ -289,14 +289,24 @@ export default {
               standardizedPlaces.add(placeValue);
               birthplaceCounts[placeValue] = (birthplaceCounts[placeValue] || 0) + 1;
               
+              // Debug info: Check what region bucket(s) this place belongs to
+              let placeBuckets = [];
+              Object.entries(shetlandPlaceBuckets).forEach(([region, places]) => {
+                if (places.includes(placeValue)) {
+                  placeBuckets.push(region);
+                }
+              });
+              
+              console.log(`Place ${placeValue} belongs to regions: ${placeBuckets.join(', ') || 'none'}`);
+              
               // Check which region this place belongs to
-              for (const [region, places] of Object.entries(shetlandPlaceBuckets)) {
+              Object.entries(shetlandPlaceBuckets).forEach(([region, places]) => {
                 if (places.includes(placeValue)) {
                   regionCounts[region] += 1;
                   console.log(`Added ${placeValue} to region ${region}, count now: ${regionCounts[region]}`);
-                  break; // Place can only belong to one region
+                  // No break - allow places to be counted in all regions they belong to
                 }
-              }
+              });
             }
           }
         });

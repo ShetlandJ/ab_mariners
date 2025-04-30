@@ -59,15 +59,12 @@ export const birthplaces = {
  */
 export const shetlandPlaceBuckets = {
   LerwickNorth: [
-    "tingwall",
-    "weisdale",
-    "whiteness"
+    "lerwick",
+    "bressay"
   ],
   LerwickSouth: [
-    "quarff",
-    "cunningsburgh",
-    "sandwick",
-    "dunrossness"
+    "lerwick",
+    "bressay"
   ],
   NorthIsles: [
     "unst",
@@ -80,28 +77,33 @@ export const shetlandPlaceBuckets = {
     "skerries"
   ],
   ShetlandCentral: [
-    "lerwick",
     "tingwall",
     "nesting",
     "lunnasting",
-    "delting"
+    "burra",
+    "trondra",
+    "oxna",
   ],
   ShetlandNorth: [
+    "delting",
     "northmavine"
   ],
   ShetlandSouth: [
+    "cunningsburgh",
+    "quarff",
+    "sandwick",
+    "dunrossness",
     "fair-isle"
   ],
   ShetlandWest: [
     "aithsting",
     "sandness",
     "sandsting",
-    "burra",
-    "trondra",
     "walls",
     "papa-stour",
     "foula",
-    "oxna"
+    "weisdale",
+    "whiteness"
   ]
 };
 
