@@ -63,7 +63,7 @@
                 id="location-select" 
                 v-model="selectedLocation" 
                 @change="handleLocationSelect"
-                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
               >
                 <option value="">All Locations</option>
                 <option v-for="location in availableLocations" :key="location" :value="location">

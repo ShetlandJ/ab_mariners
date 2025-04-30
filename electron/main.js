@@ -556,6 +556,42 @@ function setupIpcHandlers() {
     }
   });
 
+  ipcMain.handle('create-ship', async (event, ship) => {
+    try {
+      // Create SQL INSERT statement dynamically from the ship object
+      const fields = Object.keys(ship)
+        .filter(key => ship[key] !== undefined && ship[key] !== null && ship[key] !== '')
+        .join(', ');
+
+      const placeholders = Object.keys(ship)
+        .filter(key => ship[key] !== undefined && ship[key] !== null && ship[key] !== '')
+        .map(() => '?')
+        .join(', ');
+
+      const values = Object.keys(ship)
+        .filter(key => ship[key] !== undefined && ship[key] !== null && ship[key] !== '')
+        .map(key => ship[key]);
+
+      // If there are no valid fields, handle the error
+      if (!fields) {
+        throw new Error('No valid fields provided for creating a ship');
+      }
+
+      const sql = `INSERT INTO ship (${fields}) VALUES (${placeholders})`;
+      
+      // Execute the insert
+      const result = await db.run(sql, values);
+      
+      // Get the newly created ship with the inserted ID
+      const newShip = await db.get('SELECT * FROM ship WHERE shipID = ?', [result.lastID]);
+      
+      return newShip;
+    } catch (error) {
+      console.error('Error creating ship:', error);
+      throw error;
+    }
+  });
+
   // Database backup handlers
   ipcMain.handle('get-database-info', async () => {
     try {

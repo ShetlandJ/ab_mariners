@@ -37,6 +37,10 @@ const database = {
     return window.electronAPI.database.updateShip(ship);
   },
   
+  async createShip(ship) {
+    return window.electronAPI.database.createShip(ship);
+  },
+  
   // Ship assignment methods
   async addShipAssignment(personId, assignment) {
     return window.electronAPI.database.addShipAssignment(personId, assignment);

@@ -2,14 +2,25 @@
   <div class="ships-view">
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-bold dark:text-white">Ships</h1>
-      <div class="search-container">
-        <input
-          type="text"
-          v-model="searchTerm"
-          @input="handleSearch"
-          placeholder="Search ships..."
-          class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-        />
+      <div class="flex space-x-4 items-center">
+        <div class="search-container">
+          <input
+            type="text"
+            v-model="searchTerm"
+            @input="handleSearch"
+            placeholder="Search ships..."
+            class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+          />
+        </div>
+        <button 
+          @click="createShip"
+          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 flex items-center"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Create New Ship
+        </button>
       </div>
     </div>
 
@@ -147,6 +158,11 @@ export default {
       await loadShips();
     }
 
+    function createShip() {
+      currentShip.value = {}; // Initialize with an empty object for new ship
+      showEditModal.value = true;
+    }
+
     return {
       ships,
       totalItems,
@@ -163,7 +179,8 @@ export default {
       showEditModal,
       currentShip,
       closeEditModal,
-      handleShipSaved
+      handleShipSaved,
+      createShip
     };
   }
 }
