@@ -34,6 +34,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     addShipAssignment: (personId, assignment) => {
       return ipcRenderer.invoke('add-ship-assignment', personId, assignment);
     },
+    // Crew overlap report method
+    getCrewOverlaps: (page, limit, shipFilter, dateFilter) => {
+      return ipcRenderer.invoke('get-crew-overlaps', page, limit, shipFilter, dateFilter);
+    },
     // New backup-related methods
     getDatabaseInfo: () => {
       return ipcRenderer.invoke('get-database-info');

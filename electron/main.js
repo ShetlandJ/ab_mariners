@@ -694,6 +694,129 @@ function setupIpcHandlers() {
       return [];
     }
   });
+
+  // Get crew overlaps handler (for sailors who served together)
+  ipcMain.handle('get-crew-overlaps', async (event, page, limit, shipFilter, dateFilter) => {
+    try {
+      const offset = (page - 1) * limit;
+      let params = [];
+      
+      // Base query finds pairs of sailors who served on the same ship with overlapping dates
+      let query = `
+        WITH sailor_pairs AS (
+          SELECT 
+            ps1.id as assignment1_id,
+            ps1.person_id as person1_id,
+            ps1.ship_id,
+            ps1.rank as rank1,
+            ps1.start_date as start_date1,
+            ps1.end_date as end_date1,
+            ps2.id as assignment2_id,
+            ps2.person_id as person2_id,
+            ps2.rank as rank2,
+            ps2.start_date as start_date2,
+            ps2.end_date as end_date2,
+            s.name as ship_name,
+            s.designation as ship_designation,
+            p1.forename as forename1,
+            p1.surname as surname1,
+            p2.forename as forename2,
+            p2.surname as surname2
+          FROM person_ship ps1
+          JOIN person_ship ps2 ON ps1.ship_id = ps2.ship_id
+          JOIN ship s ON ps1.ship_id = s.shipID
+          JOIN person p1 ON ps1.person_id = p1.person_id
+          JOIN person p2 ON ps2.person_id = p2.person_id
+          WHERE 
+            ps1.person_id < ps2.person_id AND  -- Ensure no duplicate pairs
+            (
+              -- Check for date overlap scenarios
+              (ps1.start_date IS NOT NULL AND ps2.start_date IS NOT NULL AND 
+               ps1.end_date IS NOT NULL AND ps2.end_date IS NOT NULL AND
+               ps1.start_date <= ps2.end_date AND ps2.start_date <= ps1.end_date)
+              OR
+              -- Cases with missing end dates
+              (ps1.start_date IS NOT NULL AND ps2.start_date IS NOT NULL AND
+               (ps1.end_date IS NULL OR ps2.end_date IS NULL) AND
+               (ps1.start_date <= ps2.start_date OR ps2.start_date <= ps1.start_date))
+            )
+      `;
+      
+      // Add ship filter if provided
+      if (shipFilter) {
+        query += ` AND LOWER(s.name) LIKE ? `;
+        params.push(`%${shipFilter.toLowerCase()}%`);
+      }
+      
+      // Add date filter if provided
+      if (dateFilter) {
+        query += ` AND (
+          (ps1.start_date <= ? AND (ps1.end_date IS NULL OR ps1.end_date >= ?)) OR
+          (ps2.start_date <= ? AND (ps2.end_date IS NULL OR ps2.end_date >= ?))
+        ) `;
+        params.push(dateFilter, dateFilter, dateFilter, dateFilter);
+      }
+      
+      // Finish the main query
+      query += `)
+        SELECT * FROM sailor_pairs
+        ORDER BY ship_name, start_date1, start_date2
+        LIMIT ? OFFSET ?
+      `;
+      
+      params.push(limit, offset);
+      
+      // Get the results
+      const overlaps = await db.all(query, params);
+      
+      // Get total count for pagination
+      let countQuery = `
+        SELECT COUNT(*) as count FROM (
+          SELECT 1
+          FROM person_ship ps1
+          JOIN person_ship ps2 ON ps1.ship_id = ps2.ship_id
+          JOIN ship s ON ps1.ship_id = s.shipID
+          WHERE 
+            ps1.person_id < ps2.person_id AND
+            (
+              (ps1.start_date IS NOT NULL AND ps2.start_date IS NOT NULL AND 
+               ps1.end_date IS NOT NULL AND ps2.end_date IS NOT NULL AND
+               ps1.start_date <= ps2.end_date AND ps2.start_date <= ps1.end_date)
+              OR
+              (ps1.start_date IS NOT NULL AND ps2.start_date IS NOT NULL AND
+               (ps1.end_date IS NULL OR ps2.end_date IS NULL) AND
+               (ps1.start_date <= ps2.start_date OR ps2.start_date <= ps1.start_date))
+            )
+      `;
+      
+      // Add filters to count query too
+      let countParams = [];
+      if (shipFilter) {
+        countQuery += ` AND LOWER(s.name) LIKE ? `;
+        countParams.push(`%${shipFilter.toLowerCase()}%`);
+      }
+      
+      if (dateFilter) {
+        countQuery += ` AND (
+          (ps1.start_date <= ? AND (ps1.end_date IS NULL OR ps1.end_date >= ?)) OR
+          (ps2.start_date <= ? AND (ps2.end_date IS NULL OR ps2.end_date >= ?))
+        ) `;
+        countParams.push(dateFilter, dateFilter, dateFilter, dateFilter);
+      }
+      
+      countQuery += `)`;
+      
+      const countResult = await db.get(countQuery, countParams);
+      
+      return {
+        overlaps,
+        total: countResult ? countResult.count : 0
+      };
+    } catch (error) {
+      console.error('Error getting crew overlaps:', error);
+      throw error;
+    }
+  });
 }
 
 app.whenReady().then(async () => {

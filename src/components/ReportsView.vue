@@ -90,6 +90,44 @@
           </div>
         </div>
         
+        <!-- Crew Overlap Report Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow duration-200 border-l-4 border-indigo-500">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold dark:text-white">Crew Overlap Analysis</h2>
+            <span class="text-sm text-indigo-600 dark:text-indigo-400 font-medium bg-indigo-100 dark:bg-indigo-900/30 px-2 py-1 rounded">Relationships</span>
+          </div>
+          
+          <p class="text-gray-600 dark:text-gray-300 mb-4">
+            Find mariners who served together on the same ships during overlapping time periods.
+          </p>
+          
+          <div v-if="isLoading" class="flex justify-center py-8">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500"></div>
+          </div>
+          
+          <div v-else class="h-60 flex flex-col justify-center">
+            <div class="text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-indigo-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              <p class="text-lg font-medium text-gray-900 dark:text-white">Discover Joint Voyages</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">See which mariners sailed together on the same ships</p>
+            </div>
+          </div>
+          
+          <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+            <button 
+              @click="activateReport('crew-overlap')"
+              class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:bg-indigo-700 dark:hover:bg-indigo-600 text-sm flex items-center"
+            >
+              <span>View Full Report</span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        
         <!-- Age Distribution (Placeholder/Coming Soon) -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow duration-200 border-l-4 border-gray-400 opacity-75">
           <div class="flex justify-between items-center mb-4">
@@ -394,6 +432,188 @@
                   <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5">
                     <div class="bg-purple-600 h-2.5 rounded-full" :style="{width: `${Math.round((marinersWithShips) / totalMariners * 100)}%`}"></div>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Crew Overlap Report -->
+      <div v-if="activeReport === 'crew-overlap'">
+        <div class="flex items-center mb-6">
+          <button 
+            @click="activeReport = null" 
+            class="flex items-center text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Reports
+          </button>
+          <h1 class="text-2xl font-bold dark:text-white">Crew Overlap Analysis</h1>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div class="mb-8">
+            <h2 class="text-lg font-semibold mb-4 dark:text-white">About This Report</h2>
+            <p class="text-gray-700 dark:text-gray-300 mb-3">
+              This report identifies mariners who served together on the same ships during overlapping time periods.
+              You can discover which sailors potentially knew each other or worked together during their careers.
+            </p>
+            
+            <!-- Filters -->
+            <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label for="ship-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Filter by Ship:
+                </label>
+                <div class="flex space-x-2">
+                  <select 
+                    id="ship-filter" 
+                    v-model="crewShipFilter" 
+                    @change="loadCrewOverlaps"
+                    class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  >
+                    <option value="">All Ships</option>
+                    <option v-for="ship in availableShips" :key="ship" :value="ship">
+                      {{ ship }}
+                    </option>
+                  </select>
+                  <button 
+                    v-if="crewShipFilter" 
+                    @click="clearCrewFilters('ship')"
+                    class="px-3 py-2 bg-gray-200 dark:bg-gray-600 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500"
+                    title="Clear filter"
+                  >
+                    <span class="text-gray-700 dark:text-gray-200">×</span>
+                  </button>
+                </div>
+              </div>
+              
+              <div>
+                <label for="date-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Filter by Date (YYYY-MM-DD):
+                </label>
+                <div class="flex space-x-2">
+                  <input 
+                    id="date-filter" 
+                    v-model="crewDateFilter" 
+                    placeholder="e.g. 1805-07-15" 
+                    class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                  />
+                  <button 
+                    @click="loadCrewOverlaps"
+                    class="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:hover:bg-indigo-500"
+                    title="Apply filter"
+                  >
+                    <span>Apply</span>
+                  </button>
+                  <button 
+                    v-if="crewDateFilter" 
+                    @click="clearCrewFilters('date')"
+                    class="px-3 py-2 bg-gray-200 dark:bg-gray-600 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500"
+                    title="Clear filter"
+                  >
+                    <span class="text-gray-700 dark:text-gray-200">×</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div v-if="isLoadingCrew" class="flex justify-center py-8">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500"></div>
+          </div>
+          
+          <div v-else>
+            <!-- Crew Overlaps Table -->
+            <div v-if="crewOverlaps.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+              No crew overlaps found with the current filters. Try adjusting your search or clearing filters.
+            </div>
+            
+            <div v-else>
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead class="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ship</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">First Mariner</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Second Mariner</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Overlap Period</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Ranks</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tr v-for="overlap in paginatedCrewOverlaps" :key="`${overlap.assignment1_id}-${overlap.assignment2_id}`" class="hover:bg-gray-100 dark:hover:bg-gray-700">
+                      <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">{{ overlap.ship_name || 'Unknown' }}</div>
+                        <div v-if="overlap.ship_designation" class="text-xs text-gray-500 dark:text-gray-400">{{ overlap.ship_designation }}</div>
+                      </td>
+                      <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">
+                          {{ overlap.surname1 }}, {{ overlap.forename1 }}
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                          {{ formatDate(overlap.start_date1) }} - {{ formatDate(overlap.end_date1) || 'Unknown' }}
+                        </div>
+                      </td>
+                      <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">
+                          {{ overlap.surname2 }}, {{ overlap.forename2 }}
+                        </div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                          {{ formatDate(overlap.start_date2) }} - {{ formatDate(overlap.end_date2) || 'Unknown' }}
+                        </div>
+                      </td>
+                      <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-900 dark:text-white">
+                          {{ calculateOverlapPeriod(overlap) }}
+                        </div>
+                        <div v-if="calculateOverlapDuration(overlap)" class="text-xs text-gray-500 dark:text-gray-400">
+                          {{ calculateOverlapDuration(overlap) }}
+                        </div>
+                      </td>
+                      <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-500 dark:text-gray-400">
+                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200 mr-1">
+                            {{ overlap.rank1 || 'Unknown' }}
+                          </span>
+                          &
+                          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 ml-1">
+                            {{ overlap.rank2 || 'Unknown' }}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              
+              <!-- Pagination -->
+              <div class="flex items-center justify-between mt-4">
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                  Showing <span class="font-medium">{{ (crewCurrentPage - 1) * ITEMS_PER_PAGE + 1 }}</span> to 
+                  <span class="font-medium">{{ Math.min(crewCurrentPage * ITEMS_PER_PAGE, crewTotalCount) }}</span> of 
+                  <span class="font-medium">{{ crewTotalCount }}</span> overlaps
+                </div>
+                <div class="flex space-x-2">
+                  <button 
+                    @click="prevCrewPage" 
+                    :disabled="!hasCrewPrevPage" 
+                    class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 disabled:opacity-50"
+                    :class="{ 'hover:bg-gray-50 dark:hover:bg-gray-600': hasCrewPrevPage }"
+                  >
+                    Previous
+                  </button>
+                  <button 
+                    @click="nextCrewPage" 
+                    :disabled="!hasCrewNextPage" 
+                    class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 disabled:opacity-50"
+                    :class="{ 'hover:bg-gray-50 dark:hover:bg-gray-600': hasCrewNextPage }"
+                  >
+                    Next
+                  </button>
                 </div>
               </div>
             </div>
@@ -866,7 +1086,188 @@ export default {
     });
     
     onMounted(loadMarinersData);
+
+    // Crew Overlap Report functionality
+    const isLoadingCrew = ref(false);
+    const crewOverlaps = ref([]);
+    const crewTotalCount = ref(0);
+    const crewShipFilter = ref('');
+    const crewDateFilter = ref('');
+    const availableShips = ref([]);
     
+    // Pagination for crew overlaps
+    const crewCurrentPage = ref(1);
+    const crewTotalPages = computed(() => {
+      return Math.ceil(crewTotalCount.value / ITEMS_PER_PAGE);
+    });
+    
+    const hasCrewNextPage = computed(() => {
+      return crewCurrentPage.value < crewTotalPages.value;
+    });
+    
+    const hasCrewPrevPage = computed(() => {
+      return crewCurrentPage.value > 1;
+    });
+    
+    const nextCrewPage = () => {
+      if (hasCrewNextPage.value) {
+        crewCurrentPage.value++;
+        loadCrewOverlaps();
+      }
+    };
+    
+    const prevCrewPage = () => {
+      if (hasCrewPrevPage.value) {
+        crewCurrentPage.value--;
+        loadCrewOverlaps();
+      }
+    };
+    
+    const paginatedCrewOverlaps = computed(() => {
+      return crewOverlaps.value;
+    });
+    
+    const loadCrewOverlaps = async () => {
+      isLoadingCrew.value = true;
+      try {
+        const result = await database.getCrewOverlaps(
+          crewCurrentPage.value,
+          ITEMS_PER_PAGE,
+          crewShipFilter.value,
+          crewDateFilter.value
+        );
+        
+        crewOverlaps.value = result.overlaps || [];
+        crewTotalCount.value = result.total || 0;
+      } catch (error) {
+        console.error('Error loading crew overlaps:', error);
+        crewOverlaps.value = [];
+        crewTotalCount.value = 0;
+      } finally {
+        isLoadingCrew.value = false;
+      }
+    };
+    
+    const loadAvailableShips = async () => {
+      try {
+        // Get all ships for the filter dropdown
+        const shipsResponse = await database.getShipsPaginated(1, 1000);
+        availableShips.value = shipsResponse.ships
+          .filter(ship => ship.name)
+          .map(ship => ship.name)
+          .sort();
+      } catch (error) {
+        console.error('Error loading ships:', error);
+        availableShips.value = [];
+      }
+    };
+    
+    const clearCrewFilters = (filterType) => {
+      if (filterType === 'ship') {
+        crewShipFilter.value = '';
+      } else if (filterType === 'date') {
+        crewDateFilter.value = '';
+      } else {
+        crewShipFilter.value = '';
+        crewDateFilter.value = '';
+      }
+      
+      crewCurrentPage.value = 1;
+      loadCrewOverlaps();
+    };
+    
+    const calculateOverlapPeriod = (overlap) => {
+      // Get the latest start date and earliest end date
+      const start1 = overlap.start_date1 ? new Date(overlap.start_date1) : null;
+      const start2 = overlap.start_date2 ? new Date(overlap.start_date2) : null;
+      const end1 = overlap.end_date1 ? new Date(overlap.end_date1) : null;
+      const end2 = overlap.end_date2 ? new Date(overlap.end_date2) : null;
+      
+      // If any date is invalid, return a placeholder
+      if (!start1 || !start2) {
+        return 'Dates incomplete';
+      }
+      
+      // Calculate the overlap start (latest of the two start dates)
+      const overlapStart = new Date(Math.max(start1.getTime(), start2.getTime()));
+      
+      // Calculate the overlap end (earliest of the two end dates, or null if any is null)
+      let overlapEnd = null;
+      if (end1 && end2) {
+        overlapEnd = new Date(Math.min(end1.getTime(), end2.getTime()));
+      }
+      
+      return `${formatDate(overlapStart)} - ${formatDate(overlapEnd) || 'Unknown'}`;
+    };
+    
+    const calculateOverlapDuration = (overlap) => {
+      // Get the latest start date and earliest end date
+      const start1 = overlap.start_date1 ? new Date(overlap.start_date1) : null;
+      const start2 = overlap.start_date2 ? new Date(overlap.start_date2) : null;
+      const end1 = overlap.end_date1 ? new Date(overlap.end_date1) : null;
+      const end2 = overlap.end_date2 ? new Date(overlap.end_date2) : null;
+      
+      // If any date is invalid, return a placeholder
+      if (!start1 || !start2) {
+        return '';
+      }
+      
+      // Calculate the overlap start (latest of the two start dates)
+      const overlapStart = new Date(Math.max(start1.getTime(), start2.getTime()));
+      
+      // Calculate the overlap end (earliest of the two end dates, or null if any is null)
+      let overlapEnd = null;
+      if (end1 && end2) {
+        overlapEnd = new Date(Math.min(end1.getTime(), end2.getTime()));
+        
+        // Calculate duration in days
+        const durationMs = overlapEnd.getTime() - overlapStart.getTime();
+        const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
+        
+        if (durationDays < 0) {
+          // Error in calculation, dates might be wrong
+          return '';
+        }
+        
+        // Express duration more naturally
+        if (durationDays === 0) {
+          return 'Same day';
+        } else if (durationDays === 1) {
+          return '1 day';
+        } else if (durationDays < 30) {
+          return `${durationDays} days`;
+        } else if (durationDays < 365) {
+          const months = Math.round(durationDays / 30);
+          return `~${months} ${months === 1 ? 'month' : 'months'}`;
+        } else {
+          const years = Math.round(durationDays / 365 * 10) / 10;
+          return `~${years} ${years === 1 ? 'year' : 'years'}`;
+        }
+      }
+      
+      return '';
+    };
+    
+    // Load crew data when the report is activated
+    watch(activeReport, (newValue) => {
+      if (newValue === 'crew-overlap') {
+        loadAvailableShips();
+        loadCrewOverlaps();
+      }
+    });
+    
+    // Format date for display
+    const formatDate = (dateStr) => {
+      if (!dateStr) return '';
+      try {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return dateStr;
+        return date.toLocaleDateString();
+      } catch (e) {
+        return dateStr;
+      }
+    };
+
     return {
       isLoading,
       mariners,
@@ -903,7 +1304,27 @@ export default {
       // Additional stats for extended reports
       missingBirthInfo,
       missingDeathInfo,
-      marinersWithShips
+      marinersWithShips,
+      // Crew Overlap Report
+      isLoadingCrew,
+      crewOverlaps,
+      crewTotalCount,
+      crewShipFilter,
+      crewDateFilter,
+      availableShips,
+      crewCurrentPage,
+      crewTotalPages,
+      hasCrewNextPage,
+      hasCrewPrevPage,
+      nextCrewPage,
+      prevCrewPage,
+      paginatedCrewOverlaps,
+      loadCrewOverlaps,
+      loadAvailableShips,
+      clearCrewFilters,
+      calculateOverlapPeriod,
+      calculateOverlapDuration,
+      formatDate
     };
   }
 }

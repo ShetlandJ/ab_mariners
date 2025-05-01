@@ -48,6 +48,11 @@ const database = {
   
   async searchShips(searchTerm) {
     return window.electronAPI.database.getShipsPaginated(1, 10, searchTerm);
+  },
+
+  // Crew overlap methods
+  async getCrewOverlaps(page, limit, shipFilter = null, dateFilter = null) {
+    return window.electronAPI.database.getCrewOverlaps(page, limit, shipFilter, dateFilter);
   }
 };
 
