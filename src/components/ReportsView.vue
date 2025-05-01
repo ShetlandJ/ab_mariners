@@ -405,7 +405,7 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import database from '../services/database';
 import { getStandardizedPlace } from '../data/birthplaces';
 import { use } from 'echarts/core';
