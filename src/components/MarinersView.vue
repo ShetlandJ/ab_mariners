@@ -157,10 +157,20 @@ export default {
     // Watch for page changes
     watch(currentPage, loadMariners);
 
-    function editMariner(mariner) {
+    async function editMariner(mariner) {
       isCreatingMariner.value = false;
-      currentMariner.value = { ...mariner }; // Create a copy to avoid direct mutation
-      showEditModal.value = true;
+      
+      try {
+        // Fetch complete mariner data including ship assignments
+        const completeMariner = await database.getMarinerById(mariner.person_id);
+        currentMariner.value = completeMariner || mariner;
+        showEditModal.value = true;
+      } catch (error) {
+        console.error('Error fetching complete mariner data:', error);
+        // Fallback to basic mariner data
+        currentMariner.value = { ...mariner };
+        showEditModal.value = true;
+      }
     }
 
     function createMariner() {

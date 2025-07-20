@@ -111,94 +111,175 @@
               <input type="text" v-model="form.cod" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
             </div>
 
-            <!-- Ship Information 1 -->
+            <!-- Ship Assignments -->
             <div class="col-span-2">
-              <h3 class="font-semibold text-lg mb-2 mt-4 border-b pb-1 dark:border-gray-700 dark:text-white">Ship Assignment 1</h3>
+              <h3 class="font-semibold text-lg mb-2 mt-4 border-b pb-1 dark:border-gray-700 dark:text-white">Ship Assignments</h3>
             </div>
 
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Application Date</label>
-              <input type="date" v-model="form.appdate1" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+            <!-- Debug Info -->
+            <div v-if="!isCreating" class="col-span-2 mb-4">
+              <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-2 text-sm">
+                <strong>Debug Info:</strong><br>
+                Person ID: {{ mariner.person_id }}<br>
+                Ship Assignments Array Length: {{ shipAssignments.length }}<br>
+                Has shipAssignments in mariner: {{ mariner.shipAssignments ? 'Yes' : 'No' }}<br>
+                shipAssignments in mariner length: {{ mariner.shipAssignments ? mariner.shipAssignments.length : 'N/A' }}<br>
+                <button @click="testDebugQuery" class="mt-2 px-2 py-1 bg-blue-500 text-white text-xs rounded">
+                  Test Debug Query
+                </button>
+              </div>
             </div>
 
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Entry Date</label>
-              <input type="date" v-model="form.entdate1" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+            <!-- Existing Ship Assignments -->
+            <div v-if="!isCreating" class="col-span-2 mb-4">
+              <h4 class="font-medium mb-2 dark:text-white">Current Assignments:</h4>
+              <div v-if="shipAssignments.length === 0" class="text-gray-500 dark:text-gray-400 italic">
+                No ship assignments found for this mariner.
+              </div>
+              <div v-else class="space-y-2 max-h-40 overflow-y-auto">
+                <div 
+                  v-for="assignment in shipAssignments" 
+                  :key="assignment.id" 
+                  class="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-3 rounded-md"
+                  :class="{ 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20': editingAssignmentId === assignment.id }"
+                >
+                  <div class="flex-1">
+                    <div class="font-medium dark:text-white">{{ assignment.ship_name || 'Unknown Ship' }}</div>
+                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                      {{ assignment.rank || 'No rank' }} • 
+                      {{ formatDate(assignment.start_date) || 'Unknown start' }} - 
+                      {{ formatDate(assignment.end_date) || 'Unknown end' }}
+                    </div>
+                  </div>
+                  <div class="flex items-center space-x-1 ml-2">
+                    <button 
+                      v-if="editingAssignmentId !== assignment.id"
+                      @click="editShipAssignment(assignment)"
+                      class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                      title="Edit assignment"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button 
+                      @click="removeShipAssignment(assignment.id)"
+                      class="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                      title="Remove assignment"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Ship Name</label>
-              <input type="text" v-model="form.ship1" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-            </div>
-
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Where</label>
-              <input type="text" v-model="form.where1" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-            </div>
-
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Prest 1</label>
-              <input type="text" v-model="form.prest1" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-            </div>
-
-            <!-- Ship Information 2 -->
+            <!-- Add New Ship Assignment -->
             <div class="col-span-2">
-              <h3 class="font-semibold text-lg mb-2 mt-4 border-b pb-1 dark:border-gray-700 dark:text-white">Ship Assignment 2</h3>
-            </div>
+              <h4 class="font-medium mb-2 dark:text-white">
+                {{ isEditingMode ? 'Edit Assignment:' : 'Add New Assignment:' }}
+              </h4>
+              <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-md space-y-4">
+                <!-- Edit Mode Alert -->
+                <div v-if="isEditingMode" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-blue-800 dark:text-blue-300">Editing existing assignment</span>
+                    <button @click="cancelEdit" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 text-sm">
+                      Cancel Edit
+                    </button>
+                  </div>
+                </div>
+                <!-- Ship Selection -->
+                <div class="space-y-2">
+                  <label class="block text-sm font-medium dark:text-white">Ship</label>
+                  <div class="flex space-x-2">
+                    <input 
+                      v-model="shipSearchTerm"
+                      @input="searchShips"
+                      placeholder="Search for ship or enter new ship name..."
+                      class="flex-1 p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500 dark:text-white text-sm"
+                    />
+                  </div>
+                  
+                  <!-- Ship Search Results -->
+                  <div v-if="shipSearchResults.length > 0" class="max-h-32 overflow-y-auto border rounded-md bg-white dark:bg-gray-600">
+                    <div 
+                      v-for="ship in shipSearchResults" 
+                      :key="ship.shipID"
+                      @click="selectShip(ship)"
+                      class="p-2 hover:bg-gray-100 dark:hover:bg-gray-500 cursor-pointer border-b last:border-b-0"
+                    >
+                      <div class="font-medium dark:text-white">{{ ship.name }}</div>
+                      <div v-if="ship.designation" class="text-sm text-gray-600 dark:text-gray-300">{{ ship.designation }}</div>
+                    </div>
+                  </div>
 
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Application Date</label>
-              <input type="date" v-model="form.appdate2" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-            </div>
+                  <!-- Selected Ship Display -->
+                  <div v-if="selectedShip" class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="font-medium text-blue-800 dark:text-blue-300">{{ selectedShip.name }}</span>
+                        <span v-if="selectedShip.designation" class="text-sm text-blue-600 dark:text-blue-400 ml-2">{{ selectedShip.designation }}</span>
+                      </div>
+                      <button @click="clearSelectedShip" class="text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Entry Date</label>
-              <input type="date" v-model="form.entdate2" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-            </div>
+                <!-- Assignment Details Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label class="block text-sm font-medium dark:text-white mb-1">Rank</label>
+                    <input 
+                      v-model="newAssignment.rank"
+                      placeholder="e.g., Captain, Lieutenant..."
+                      class="w-full p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500 dark:text-white text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label class="block text-sm font-medium dark:text-white mb-1">Start Date</label>
+                    <input 
+                      type="date"
+                      v-model="newAssignment.start_date"
+                      class="w-full p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500 dark:text-white text-sm"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label class="block text-sm font-medium dark:text-white mb-1">End Date</label>
+                    <input 
+                      type="date"
+                      v-model="newAssignment.end_date"
+                      class="w-full p-2 border rounded-md dark:bg-gray-600 dark:border-gray-500 dark:text-white text-sm"
+                    />
+                  </div>
+                </div>
 
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Ship Name</label>
-              <input type="text" v-model="form.ship2" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-            </div>
-
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Where</label>
-              <input type="text" v-model="form.where2" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-            </div>
-
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Prest 2</label>
-              <input type="text" v-model="form.prest2" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-            </div>
-
-            <!-- Ship Information 3 -->
-            <div class="col-span-2">
-              <h3 class="font-semibold text-lg mb-2 mt-4 border-b pb-1 dark:border-gray-700 dark:text-white">Ship Assignment 3</h3>
-            </div>
-
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Application Date</label>
-              <input type="date" v-model="form.appdate3" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-            </div>
-
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Entry Date</label>
-              <input type="date" v-model="form.entdate3" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-            </div>
-
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Ship Name</label>
-              <input type="text" v-model="form.ship3" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-            </div>
-
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Where</label>
-              <input type="text" v-model="form.where3" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
-            </div>
-
-            <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Prest 3</label>
-              <input type="text" v-model="form.prest3" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                <!-- Add Assignment Button -->
+                <div class="flex justify-end space-x-2">
+                  <button 
+                    v-if="isEditingMode"
+                    @click="cancelEdit"
+                    class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    @click="addShipAssignment"
+                    :disabled="!canAddAssignment"
+                    class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    {{ isEditingMode ? 'Update Assignment' : 'Add Assignment' }}
+                  </button>
+                </div>
+              </div>
             </div>
 
             <!-- Ship List -->
@@ -269,22 +350,19 @@ export default {
       grenpen: '',
       freetext: '',
       cod: '',
-      appdate1: '',
-      entdate1: '',
-      ship1: '',
-      where1: '',
-      prest1: '',
-      appdate2: '',
-      entdate2: '',
-      ship2: '',
-      where2: '',
-      prest2: '',
-      appdate3: '',
-      entdate3: '',
-      ship3: '',
-      where3: '',
-      prest3: '',
       shiplist: ''
+    });
+    
+    // Ship assignment functionality
+    const shipAssignments = ref([]);
+    const shipSearchTerm = ref('');
+    const shipSearchResults = ref([]);
+    const selectedShip = ref(null);
+    const editingAssignmentId = ref(null);
+    const newAssignment = reactive({
+      rank: '',
+      start_date: '1800-01-01',
+      end_date: ''
     });
     
     // Initialize form data when mariner changes
@@ -293,8 +371,192 @@ export default {
         Object.keys(form).forEach(key => {
           form[key] = props.mariner[key] !== undefined ? props.mariner[key] : '';
         });
+        
+        // Load ship assignments for existing mariners
+        if (!props.isCreating) {          
+          if (props.mariner.shipAssignments) {
+            shipAssignments.value = [...props.mariner.shipAssignments];
+          } else {
+            shipAssignments.value = [];
+          }
+        } else {
+          shipAssignments.value = [];
+        }
       }
     });
+
+    // Ship search functionality
+    let searchTimeout = null;
+    const searchShips = async () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+      
+      searchTimeout = setTimeout(async () => {
+        if (!shipSearchTerm.value.trim()) {
+          shipSearchResults.value = [];
+          return;
+        }
+        
+        try {
+          const result = await database.searchShips(shipSearchTerm.value.trim());
+          shipSearchResults.value = result.ships || [];
+        } catch (error) {
+          console.error('Error searching ships:', error);
+          shipSearchResults.value = [];
+        }
+      }, 300);
+    };
+
+    const selectShip = (ship) => {
+      selectedShip.value = ship;
+      shipSearchTerm.value = ship.name;
+      shipSearchResults.value = [];
+    };
+
+    const clearSelectedShip = () => {
+      selectedShip.value = null;
+      shipSearchTerm.value = '';
+      shipSearchResults.value = [];
+    };
+
+    const canAddAssignment = computed(() => {
+      return (selectedShip.value || shipSearchTerm.value.trim()) && 
+             newAssignment.rank.trim() && 
+             newAssignment.start_date;
+    });
+
+    const isEditingMode = computed(() => editingAssignmentId.value !== null);
+
+    const addShipAssignment = async () => {
+      if (!canAddAssignment.value) return;
+      
+      try {
+        const assignment = {
+          ship_name: selectedShip.value ? selectedShip.value.name : shipSearchTerm.value.trim(),
+          ship_id: selectedShip.value ? selectedShip.value.shipID : null,
+          rank: newAssignment.rank.trim(),
+          start_date: newAssignment.start_date,
+          end_date: newAssignment.end_date || null
+        };
+
+        if (isEditingMode.value) {
+          // Update existing assignment
+          await database.updateShipAssignment(editingAssignmentId.value, {
+            ship_id: assignment.ship_id,
+            rank: assignment.rank,
+            start_date: assignment.start_date,
+            end_date: assignment.end_date
+          });
+          
+          // Update local assignment data
+          const assignmentIndex = shipAssignments.value.findIndex(a => a.id === editingAssignmentId.value);
+          if (assignmentIndex !== -1) {
+            shipAssignments.value[assignmentIndex] = {
+              ...shipAssignments.value[assignmentIndex],
+              ...assignment
+            };
+          }
+          
+          // Clear editing mode
+          editingAssignmentId.value = null;
+        } else if (!props.isCreating) {
+          // Add new assignment for existing mariner
+          await database.addShipAssignment(props.mariner.person_id, assignment);
+          // Reload mariner data to get the updated assignments
+          const updatedMariner = await database.getMarinerById(props.mariner.person_id);
+          shipAssignments.value = updatedMariner.shipAssignments || [];
+        } else {
+          // For new mariners, just add to local array (will be saved when mariner is created)
+          shipAssignments.value.push({
+            id: Date.now(), // temporary ID
+            ...assignment,
+            ship_name: assignment.ship_name
+          });
+        }
+
+        // Reset form
+        resetAssignmentForm();
+      } catch (error) {
+        console.error('Error saving ship assignment:', error);
+        // You might want to show an error message to the user
+      }
+    };
+
+    const editShipAssignment = (assignment) => {
+      // Set editing mode
+      editingAssignmentId.value = assignment.id;
+      
+      // Populate form with assignment data
+      newAssignment.rank = assignment.rank || '';
+      newAssignment.start_date = assignment.start_date || '1800-01-01';
+      newAssignment.end_date = assignment.end_date || '';
+      
+      // Set ship information
+      if (assignment.ship_name) {
+        shipSearchTerm.value = assignment.ship_name;
+        if (assignment.ship_id) {
+          selectedShip.value = {
+            shipID: assignment.ship_id,
+            name: assignment.ship_name
+          };
+        }
+      }
+    };
+
+    const cancelEdit = () => {
+      editingAssignmentId.value = null;
+      resetAssignmentForm();
+    };
+
+    const resetAssignmentForm = () => {
+      newAssignment.rank = '';
+      newAssignment.start_date = '1800-01-01';
+      newAssignment.end_date = '';
+      clearSelectedShip();
+    };
+
+    const removeShipAssignment = async (assignmentId) => {
+      try {
+        if (!props.isCreating) {
+          // For existing mariners, remove from database
+          await database.deleteShipAssignment(assignmentId);
+          // Remove from local array
+          shipAssignments.value = shipAssignments.value.filter(a => a.id !== assignmentId);
+        } else {
+          // For new mariners, just remove from local array
+          shipAssignments.value = shipAssignments.value.filter(a => a.id !== assignmentId);
+        }
+        
+        // If we were editing this assignment, cancel edit mode
+        if (editingAssignmentId.value === assignmentId) {
+          cancelEdit();
+        }
+      } catch (error) {
+        console.error('Error removing ship assignment:', error);
+      }
+    };
+
+    const formatDate = (dateStr) => {
+      if (!dateStr) return '';
+      try {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return dateStr;
+        return date.toLocaleDateString();
+      } catch (e) {
+        return dateStr;
+      }
+    };
+
+    const testDebugQuery = async () => {
+      try {
+        const result = await database.debugGetShipAssignments(props.mariner.person_id);
+        alert(`Debug query returned ${result.length} assignments.`);
+      } catch (error) {
+        console.error('Debug query error:', error);
+        alert('Debug query failed.');
+      }
+    };
 
     // Close the modal
     function closeModal() {
@@ -334,8 +596,25 @@ export default {
 
     return {
       form,
+      shipAssignments,
+      shipSearchTerm,
+      shipSearchResults,
+      selectedShip,
+      newAssignment,
+      canAddAssignment,
+      isEditingMode,
+      editingAssignmentId,
       closeModal,
-      saveChanges
+      saveChanges,
+      searchShips,
+      selectShip,
+      clearSelectedShip,
+      addShipAssignment,
+      editShipAssignment,
+      cancelEdit,
+      removeShipAssignment,
+      formatDate,
+      testDebugQuery
     };
   }
 }

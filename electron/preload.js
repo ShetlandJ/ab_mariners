@@ -34,9 +34,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
     addShipAssignment: (personId, assignment) => {
       return ipcRenderer.invoke('add-ship-assignment', personId, assignment);
     },
+    deleteShipAssignment: (assignmentId) => {
+      return ipcRenderer.invoke('delete-ship-assignment', assignmentId);
+    },
+    updateShipAssignment: (assignmentId, assignment) => {
+      return ipcRenderer.invoke('update-ship-assignment', assignmentId, assignment);
+    },
+    // Debug method
+    debugGetShipAssignments: (personId) => {
+      return ipcRenderer.invoke('debug-get-ship-assignments', personId);
+    },
+    debugTestDb: () => {
+      return ipcRenderer.invoke('debug-test-db');
+    },
     // Crew overlap report method
     getCrewOverlaps: (page, limit, shipFilter, dateFilter) => {
       return ipcRenderer.invoke('get-crew-overlaps', page, limit, shipFilter, dateFilter);
+    },
+    // Ship crew report method
+    getShipCrew: (shipId, page, limit) => {
+      return ipcRenderer.invoke('get-ship-crew', shipId, page, limit);
     },
     // New backup-related methods
     getDatabaseInfo: () => {

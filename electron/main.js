@@ -10,11 +10,22 @@ let db;
 
 async function initDatabase() {
   try {
-    // Open the database
+    // Close existing connection if any
+    if (db) {
+      await db.close();
+    }
+    
+    // Open the database with better configuration
     db = await open({
       filename: path.join(__dirname, '../db/database.sqlite'),
       driver: sqlite3.Database
     });
+    
+    // Enable WAL mode for better concurrent access
+    await db.exec('PRAGMA journal_mode = WAL;');
+    
+    // Set busy timeout
+    await db.exec('PRAGMA busy_timeout = 10000;');
     
     console.log('Database connected successfully');
   } catch (error) {
@@ -48,7 +59,7 @@ function createWindow() {
     console.log('Loading development URL: http://localhost:5173');
     mainWindow.loadURL('http://localhost:5173');
     // Open DevTools in development
-    // mainWindow.webContents.openDevTools();
+    mainWindow.webContents.openDevTools();
   } else {
     const indexPath = path.join(__dirname, '../dist/index.html');
     console.log('Loading production file:', indexPath);
@@ -292,7 +303,9 @@ function setupIpcHandlers() {
       const query = 'SELECT * FROM person WHERE person_id = ?';
       const mariner = await db.get(query, [id]);
       
-      if (!mariner) return null;
+      if (!mariner) {
+        return null;
+      }
       
       // Cast died_at_sea to boolean
       if (mariner.died_at_sea !== null) {
@@ -319,7 +332,34 @@ function setupIpcHandlers() {
     }
   });
 
-  ipcMain.handle('create-mariner', async (event, mariner) => {
+  // Debug handler for testing ship assignments
+  ipcMain.handle('debug-get-ship-assignments', async (event, personId) => {
+    try {
+      const query = `
+        SELECT ps.*, s.name as ship_name, s.designation
+        FROM person_ship ps
+        LEFT JOIN ship s ON ps.ship_id = s.shipID
+        WHERE ps.person_id = ?
+        ORDER BY ps.start_date
+      `;
+      const result = await db.all(query, [personId]);
+      return result;
+    } catch (error) {
+      console.error('Error getting ship assignments:', error);
+      throw error;
+    }
+  });
+
+  // Simple debug handler to test database connectivity
+  ipcMain.handle('debug-test-db', async (event) => {
+    try {
+      const result = await db.get('SELECT COUNT(*) as count FROM person');
+      return result;
+    } catch (error) {
+      console.error('Database connectivity test failed:', error);
+      throw error;
+    }
+  });  ipcMain.handle('create-mariner', async (event, mariner) => {
     try {
       // Create SQL INSERT statement dynamically from the mariner object
       const fields = Object.keys(mariner)
@@ -588,6 +628,111 @@ function setupIpcHandlers() {
       return newShip;
     } catch (error) {
       console.error('Error creating ship:', error);
+      throw error;
+    }
+  });
+
+  // Handler to get all crew members for a specific ship
+  ipcMain.handle('get-ship-crew', async (event, shipId, page, limit) => {
+    try {
+      const offset = (page - 1) * limit;
+      
+      // Query to get all mariners who served on a specific ship
+      const query = `
+        SELECT 
+          ps.id as assignment_id,
+          ps.rank,
+          ps.start_date,
+          ps.end_date,
+          p.person_id,
+          p.forename,
+          p.surname,
+          p.year_of_birth,
+          p.place_of_birth,
+          p.died_at_sea
+        FROM person_ship ps
+        JOIN person p ON ps.person_id = p.person_id
+        WHERE ps.ship_id = ?
+        ORDER BY ps.start_date, p.surname, p.forename
+        LIMIT ? OFFSET ?
+      `;
+      
+      const crew = await db.all(query, [shipId, limit, offset]);
+      
+      // Get total count for pagination
+      const countQuery = `
+        SELECT COUNT(*) as count
+        FROM person_ship
+        WHERE ship_id = ?
+      `;
+      
+      const countResult = await db.get(countQuery, [shipId]);
+      
+      // Get ship details
+      const shipQuery = `
+        SELECT * FROM ship WHERE shipID = ?
+      `;
+      
+      const ship = await db.get(shipQuery, [shipId]);
+      
+      return {
+        crew,
+        total: countResult ? countResult.count : 0,
+        ship
+      };
+    } catch (error) {
+      console.error('Error getting ship crew:', error);
+      throw error;
+    }
+  });
+
+  // Delete ship assignment handler
+  ipcMain.handle('delete-ship-assignment', async (event, assignmentId) => {
+    try {
+      if (!assignmentId) {
+        throw new Error('Assignment ID is required');
+      }
+
+      const result = await db.run('DELETE FROM person_ship WHERE id = ?', [assignmentId]);
+      
+      return { 
+        success: true, 
+        deletedCount: result.changes,
+        id: assignmentId 
+      };
+    } catch (error) {
+      console.error('Error deleting ship assignment:', error);
+      throw error;
+    }
+  });
+
+  // Update ship assignment handler
+  ipcMain.handle('update-ship-assignment', async (event, assignmentId, assignment) => {
+    try {
+      if (!assignmentId) {
+        throw new Error('Assignment ID is required');
+      }
+
+      if (!assignment) {
+        throw new Error('Assignment data is required');
+      }
+
+      const { ship_id, rank, start_date, end_date } = assignment;
+
+      const result = await db.run(
+        `UPDATE person_ship 
+         SET ship_id = ?, rank = ?, start_date = ?, end_date = ? 
+         WHERE id = ?`,
+        [ship_id, rank, start_date, end_date, assignmentId]
+      );
+      
+      return { 
+        success: true, 
+        updatedCount: result.changes,
+        id: assignmentId 
+      };
+    } catch (error) {
+      console.error('Error updating ship assignment:', error);
       throw error;
     }
   });

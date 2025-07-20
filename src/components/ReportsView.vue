@@ -128,6 +128,44 @@
           </div>
         </div>
         
+        <!-- Ship Crew Report Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow duration-200 border-l-4 border-teal-500">
+          <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-semibold dark:text-white">Ship Crew Lists</h2>
+            <span class="text-sm text-teal-600 dark:text-teal-400 font-medium bg-teal-100 dark:bg-teal-900/30 px-2 py-1 rounded">Vessels</span>
+          </div>
+          
+          <p class="text-gray-600 dark:text-gray-300 mb-4">
+            View complete crew lists for each ship, including service dates and ranks.
+          </p>
+          
+          <div v-if="isLoading" class="flex justify-center py-8">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500"></div>
+          </div>
+          
+          <div v-else class="h-60 flex flex-col justify-center">
+            <div class="text-center">
+              <svg xmlns="http://www.w3.org/2000/svg" class="mx-auto h-16 w-16 text-teal-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              <p class="text-lg font-medium text-gray-900 dark:text-white">Ship Rosters</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Search for ships and view complete crew lists</p>
+            </div>
+          </div>
+          
+          <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end">
+            <button 
+              @click="activateReport('ship-crew')"
+              class="px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 dark:bg-teal-700 dark:hover:bg-teal-600 text-sm flex items-center"
+            >
+              <span>View Full Report</span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        
         <!-- Age Distribution (Placeholder/Coming Soon) -->
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow duration-200 border-l-4 border-gray-400 opacity-75">
           <div class="flex justify-between items-center mb-4">
@@ -611,6 +649,182 @@
                     :disabled="!hasCrewNextPage" 
                     class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 disabled:opacity-50"
                     :class="{ 'hover:bg-gray-50 dark:hover:bg-gray-600': hasCrewNextPage }"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ship Crew Report -->
+      <div v-if="activeReport === 'ship-crew'">
+        <div class="flex items-center mb-6">
+          <button 
+            @click="activeReport = null" 
+            class="flex items-center text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Reports
+          </button>
+          <h1 class="text-2xl font-bold dark:text-white">Ship Crew Lists</h1>
+        </div>
+        
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div class="mb-8">
+            <h2 class="text-lg font-semibold mb-4 dark:text-white">Find Ship Crews</h2>
+            <p class="text-gray-700 dark:text-gray-300 mb-3">
+              Search for a ship to view its complete crew list, including service dates and ranks of all mariners who served aboard.
+            </p>
+            
+            <!-- Ship Search -->
+            <div class="mt-6">
+              <label for="ship-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Search for a ship:
+              </label>
+              <div class="flex space-x-2">
+                <input 
+                  id="ship-search" 
+                  v-model="shipSearch" 
+                  @keyup.enter="searchShipsForCrew"
+                  placeholder="Enter ship name..." 
+                  class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                />
+                <button 
+                  @click="searchShipsForCrew"
+                  class="px-3 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 dark:hover:bg-teal-500"
+                  title="Search"
+                >
+                  <span>Search</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Display ship search results -->
+          <div v-if="shipSearchPerformed && !isLoadingShipSearch">
+            <div v-if="shipSearchResults.ships && shipSearchResults.ships.length > 0" class="mb-8">
+              <h3 class="text-lg font-semibold mb-4 dark:text-white">Ships Found</h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                <div 
+                  v-for="ship in shipSearchResults.ships" 
+                  :key="ship.shipID" 
+                  @click="selectShipForCrew(ship)"
+                  class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg border-2 hover:border-teal-500 dark:hover:border-teal-400 cursor-pointer transition-colors duration-200"
+                  :class="selectedShipId === ship.shipID ? 'border-teal-500 dark:border-teal-400' : 'border-transparent'"
+                >
+                  <div class="font-medium text-gray-900 dark:text-white">{{ ship.name || 'Unknown' }}</div>
+                  <div v-if="ship.designation" class="text-sm text-gray-500 dark:text-gray-400">{{ ship.designation }}</div>
+                </div>
+              </div>
+            </div>
+            
+            <div v-else class="text-center py-6 text-gray-500 dark:text-gray-400">
+              No ships found matching your search term. Try a different search.
+            </div>
+          </div>
+          
+          <div v-if="isLoadingShipSearch || isLoadingShipCrew" class="flex justify-center py-8">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500"></div>
+          </div>
+          
+          <!-- Selected Ship Crew -->
+          <div v-if="selectedShipId && shipCrewLoaded && !isLoadingShipCrew" class="mt-8">
+            <div class="mb-6 p-4 bg-teal-50 dark:bg-teal-900/20 rounded-md">
+              <div class="flex justify-between items-center">
+                <div>
+                  <h3 class="text-lg font-semibold text-teal-800 dark:text-teal-300">
+                    {{ selectedShipDetails.name || 'Unknown Ship' }}
+                  </h3>
+                  <p v-if="selectedShipDetails.designation" class="text-sm text-teal-600 dark:text-teal-400">
+                    {{ selectedShipDetails.designation }}
+                  </p>
+                </div>
+                <div class="text-right">
+                  <p class="text-sm text-teal-600 dark:text-teal-400">
+                    <span class="font-medium">Total Crew:</span> {{ shipCrewTotal }}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div v-if="shipCrew.length === 0" class="text-center py-8 text-gray-500 dark:text-gray-400">
+              No crew records found for this ship.
+            </div>
+            
+            <div v-else>
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead class="bg-gray-50 dark:bg-gray-800">
+                    <tr>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Mariner</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rank</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Service Period</th>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Birthplace</th>
+                    </tr>
+                  </thead>
+                  <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    <tr v-for="crewMember in shipCrew" :key="crewMember.assignment_id" class="hover:bg-gray-100 dark:hover:bg-gray-700">
+                      <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">
+                          {{ crewMember.surname }}, {{ crewMember.forename }}
+                        </div>
+                        <div v-if="crewMember.year_of_birth" class="text-xs text-gray-500 dark:text-gray-400">
+                          b. {{ crewMember.year_of_birth }}
+                        </div>
+                      </td>
+                      <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-700 dark:text-gray-300">
+                          {{ crewMember.rank || 'Unknown' }}
+                        </div>
+                      </td>
+                      <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-700 dark:text-gray-300">
+                          {{ formatDate(crewMember.start_date) || 'Unknown' }} - 
+                          {{ formatDate(crewMember.end_date) || 'Unknown' }}
+                        </div>
+                        <div v-if="calculateServiceDuration(crewMember)" class="text-xs text-gray-500 dark:text-gray-400">
+                          {{ calculateServiceDuration(crewMember) }}
+                        </div>
+                      </td>
+                      <td class="px-4 py-4 whitespace-nowrap">
+                        <div class="text-sm text-gray-700 dark:text-gray-300">
+                          {{ crewMember.place_of_birth || 'Unknown' }}
+                        </div>
+                        <div v-if="crewMember.died_at_sea" class="text-xs text-red-500 dark:text-red-400 font-medium">
+                          Died at sea
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              
+              <!-- Pagination -->
+              <div class="flex items-center justify-between mt-4">
+                <div class="text-sm text-gray-700 dark:text-gray-300">
+                  Showing <span class="font-medium">{{ (shipCrewPage - 1) * ITEMS_PER_PAGE + 1 }}</span> to 
+                  <span class="font-medium">{{ Math.min(shipCrewPage * ITEMS_PER_PAGE, shipCrewTotal) }}</span> of 
+                  <span class="font-medium">{{ shipCrewTotal }}</span> crew members
+                </div>
+                <div class="flex space-x-2">
+                  <button 
+                    @click="prevShipCrewPage" 
+                    :disabled="!hasShipCrewPrevPage" 
+                    class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 disabled:opacity-50"
+                    :class="{ 'hover:bg-gray-50 dark:hover:bg-gray-600': hasShipCrewPrevPage }"
+                  >
+                    Previous
+                  </button>
+                  <button 
+                    @click="nextShipCrewPage" 
+                    :disabled="!hasShipCrewNextPage" 
+                    class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 disabled:opacity-50"
+                    :class="{ 'hover:bg-gray-50 dark:hover:bg-gray-600': hasShipCrewNextPage }"
                   >
                     Next
                   </button>
@@ -1268,6 +1482,120 @@ export default {
       }
     };
 
+    // Ship Crew Report functionality
+    const shipSearch = ref('');
+    const shipSearchPerformed = ref(false);
+    const shipSearchResults = ref({});
+    const isLoadingShipSearch = ref(false);
+    const selectedShipId = ref(null);
+    const selectedShipDetails = ref({});
+    const shipCrew = ref([]);
+    const shipCrewTotal = ref(0);
+    const shipCrewPage = ref(1);
+    const shipCrewLoaded = ref(false);
+    const isLoadingShipCrew = ref(false);
+
+    const hasShipCrewNextPage = computed(() => {
+      return shipCrewPage.value < Math.ceil(shipCrewTotal.value / ITEMS_PER_PAGE);
+    });
+
+    const hasShipCrewPrevPage = computed(() => {
+      return shipCrewPage.value > 1;
+    });
+
+    const nextShipCrewPage = () => {
+      if (hasShipCrewNextPage.value) {
+        shipCrewPage.value++;
+        loadShipCrew();
+      }
+    };
+
+    const prevShipCrewPage = () => {
+      if (hasShipCrewPrevPage.value) {
+        shipCrewPage.value--;
+        loadShipCrew();
+      }
+    };
+
+    const searchShipsForCrew = async () => {
+      if (!shipSearch.value.trim()) return;
+      isLoadingShipSearch.value = true;
+      shipSearchPerformed.value = true;
+      try {
+        const result = await database.searchShips(shipSearch.value.trim());
+        shipSearchResults.value = result || {};
+      } catch (error) {
+        console.error('Error searching ships:', error);
+        shipSearchResults.value = {};
+      } finally {
+        isLoadingShipSearch.value = false;
+      }
+    };
+
+    const selectShipForCrew = (ship) => {
+      selectedShipId.value = ship.shipID;
+      selectedShipDetails.value = ship;
+      shipCrewPage.value = 1;
+      loadShipCrew();
+    };
+
+    const loadShipCrew = async () => {
+      if (!selectedShipId.value) return;
+      isLoadingShipCrew.value = true;
+      try {
+        const result = await database.getShipCrew(selectedShipId.value, shipCrewPage.value, ITEMS_PER_PAGE);
+        shipCrew.value = result.crew || [];
+        shipCrewTotal.value = result.total || 0;
+        shipCrewLoaded.value = true;
+      } catch (error) {
+        console.error('Error loading ship crew:', error);
+        shipCrew.value = [];
+        shipCrewTotal.value = 0;
+        shipCrewLoaded.value = false;
+      } finally {
+        isLoadingShipCrew.value = false;
+      }
+    };
+
+    const calculateServiceDuration = (crewMember) => {
+      const start = crewMember.start_date ? new Date(crewMember.start_date) : null;
+      const end = crewMember.end_date ? new Date(crewMember.end_date) : null;
+
+      if (!start || !end) return '';
+
+      const durationMs = end.getTime() - start.getTime();
+      const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
+
+      if (durationDays < 0) return '';
+
+      if (durationDays === 0) {
+        return 'Same day';
+      } else if (durationDays === 1) {
+        return '1 day';
+      } else if (durationDays < 30) {
+        return `${durationDays} days`;
+      } else if (durationDays < 365) {
+        const months = Math.round(durationDays / 30);
+        return `~${months} ${months === 1 ? 'month' : 'months'}`;
+      } else {
+        const years = Math.round(durationDays / 365 * 10) / 10;
+        return `~${years} ${years === 1 ? 'year' : 'years'}`;
+      }
+    };
+
+    watch(activeReport, (newValue) => {
+      if (newValue === 'ship-crew') {
+        shipSearchPerformed.value = false;
+        shipSearchResults.value = {};
+        selectedShipId.value = null;
+        selectedShipDetails.value = {};
+        shipCrew.value = [];
+        shipCrewTotal.value = 0;
+        shipCrewPage.value = 1;
+        shipCrewLoaded.value = false;
+      }
+    });
+
     return {
       isLoading,
       mariners,
@@ -1324,7 +1652,27 @@ export default {
       clearCrewFilters,
       calculateOverlapPeriod,
       calculateOverlapDuration,
-      formatDate
+      formatDate,
+      // Ship Crew Report
+      shipSearch,
+      shipSearchPerformed,
+      shipSearchResults,
+      isLoadingShipSearch,
+      selectedShipId,
+      selectedShipDetails,
+      shipCrew,
+      shipCrewTotal,
+      shipCrewPage,
+      shipCrewLoaded,
+      isLoadingShipCrew,
+      hasShipCrewNextPage,
+      hasShipCrewPrevPage,
+      nextShipCrewPage,
+      prevShipCrewPage,
+      searchShipsForCrew,
+      selectShipForCrew,
+      loadShipCrew,
+      calculateServiceDuration
     };
   }
 }

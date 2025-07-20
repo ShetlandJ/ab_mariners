@@ -46,8 +46,30 @@ const database = {
     return window.electronAPI.database.addShipAssignment(personId, assignment);
   },
   
+  async deleteShipAssignment(assignmentId) {
+    return window.electronAPI.database.deleteShipAssignment(assignmentId);
+  },
+  
+  async updateShipAssignment(assignmentId, assignment) {
+    return window.electronAPI.database.updateShipAssignment(assignmentId, assignment);
+  },
+  
+  // Debug method
+  async debugGetShipAssignments(personId) {
+    return window.electronAPI.database.debugGetShipAssignments(personId);
+  },
+  
+  async debugTestDb() {
+    return window.electronAPI.database.debugTestDb();
+  },
+  
   async searchShips(searchTerm) {
     return window.electronAPI.database.getShipsPaginated(1, 10, searchTerm);
+  },
+
+  // Ship crew methods
+  async getShipCrew(shipId, page, limit) {
+    return window.electronAPI.database.getShipCrew(shipId, page, limit);
   },
 
   // Crew overlap methods
