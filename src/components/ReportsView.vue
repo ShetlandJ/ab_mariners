@@ -406,6 +406,53 @@
             </div>
           </div>
         </div>
+        
+        <!-- Mortality Analysis Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+          <!-- Died at Sea Chart -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold mb-4 dark:text-white">Died at Sea Distribution</h2>
+            <div class="h-80">
+              <v-chart 
+                :key="'sea-' + chartRenderKey" 
+                class="w-full h-full" 
+                :option="diedAtSeaChartOption" 
+                autoresize 
+              />
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+              <div class="grid grid-cols-2 gap-4 text-center text-sm">
+                <div>
+                  <div class="font-semibold text-red-600 dark:text-red-400">{{ diedAtSeaCount }}</div>
+                  <div class="text-gray-600 dark:text-gray-400">Died at Sea</div>
+                </div>
+                <div>
+                  <div class="font-semibold text-gray-600 dark:text-gray-400">{{ unknownDeathLocationCount }}</div>
+                  <div class="text-gray-600 dark:text-gray-400">Unknown</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Cause of Death Chart -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold mb-4 dark:text-white">Top Causes of Death</h2>
+            <div class="h-80">
+              <v-chart 
+                :key="'cod-' + chartRenderKey" 
+                class="w-full h-full" 
+                :option="causeOfDeathChartOption" 
+                autoresize 
+              />
+            </div>
+            <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+              <div class="text-center text-sm">
+                <div class="font-semibold text-gray-900 dark:text-white">{{ marinersWithCOD }}</div>
+                <div class="text-gray-600 dark:text-gray-400">Mariners with recorded cause of death</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       
       <!-- Dataset Statistics Report -->
@@ -1011,6 +1058,10 @@ export default {
     const birthYearChartOption = ref({});
     const ageAtDeathChartOption = ref({});
     
+    // Mortality analysis chart options
+    const diedAtSeaChartOption = ref({});
+    const causeOfDeathChartOption = ref({});
+    
     // Placeholders for additional statistics
     const missingBirthInfo = ref(0);
     const missingDeathInfo = ref(0);
@@ -1033,6 +1084,7 @@ export default {
               // Update chart with new theme
               generateChartData();
               generateAgeAnalysisCharts();
+              generateMortalityCharts();
               
               // Force chart recreation
               chartRenderKey.value++;
@@ -1065,6 +1117,7 @@ export default {
         // Generate chart data once we have the mariners
         generateChartData();
         generateAgeAnalysisCharts();
+        generateMortalityCharts();
         updateAvailableLocations();
       } catch (error) {
         console.error('Error loading mariner data:', error);
@@ -1464,6 +1517,126 @@ export default {
       };
     };
 
+    const generateMortalityCharts = () => {
+      // Generate Died at Sea Chart
+      const seaData = [
+        { value: diedAtSeaCount.value, name: 'Died at Sea' },
+        { value: unknownDeathLocationCount.value, name: 'Unknown' }
+      ];
+      
+      diedAtSeaChartOption.value = {
+        title: {
+          text: 'Mortality Location',
+          left: 'center',
+          textStyle: {
+            color: isDarkModeActive.value ? '#fff' : '#333'
+          }
+        },
+        tooltip: {
+          trigger: 'item',
+          formatter: '{b}: {c} ({d}%)'
+        },
+        legend: {
+          orient: 'vertical',
+          right: 10,
+          top: 'center',
+          textStyle: {
+            color: isDarkModeActive.value ? '#fff' : '#333'
+          }
+        },
+        series: [{
+          type: 'pie',
+          radius: ['40%', '70%'],
+          avoidLabelOverlap: true,
+          itemStyle: {
+            borderRadius: 10,
+            borderColor: isDarkModeActive.value ? '#1f2937' : '#fff',
+            borderWidth: 2
+          },
+          label: {
+            show: false
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: '18',
+              fontWeight: 'bold',
+              color: isDarkModeActive.value ? '#fff' : '#333'
+            }
+          },
+          data: seaData.map(item => {
+            let color;
+            if (item.name === 'Died at Sea') color = '#ef4444';
+            else color = '#6b7280';
+            
+            return {
+              ...item,
+              itemStyle: { color }
+            };
+          })
+        }]
+      };
+      
+      // Generate Cause of Death Chart
+      const codData = {};
+      mariners.value.forEach(m => {
+        if (m.cod && m.cod.trim() !== '') {
+          const cause = m.cod.trim();
+          codData[cause] = (codData[cause] || 0) + 1;
+        }
+      });
+      
+      // Sort and get top 10 causes
+      const sortedCauses = Object.entries(codData)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10);
+      
+      const causes = sortedCauses.map(([cause]) => cause);
+      const counts = sortedCauses.map(([, count]) => count);
+      
+      causeOfDeathChartOption.value = {
+        title: {
+          text: 'Top 10 Causes of Death',
+          left: 'center',
+          textStyle: {
+            color: isDarkModeActive.value ? '#fff' : '#333'
+          }
+        },
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: {
+            type: 'shadow'
+          }
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '3%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'value',
+          axisLabel: {
+            color: isDarkModeActive.value ? '#fff' : '#333'
+          }
+        },
+        yAxis: {
+          type: 'category',
+          data: causes,
+          axisLabel: {
+            color: isDarkModeActive.value ? '#fff' : '#333'
+          }
+        },
+        series: [{
+          type: 'bar',
+          data: counts,
+          itemStyle: {
+            color: '#8b5cf6'
+          }
+        }]
+      };
+    };
+
     const handleChartClick = params => {
       if (params.name === 'Other') {
         // When "Other" is clicked, show the breakdown of other places
@@ -1662,6 +1835,19 @@ export default {
     });
     
     const otherCount = computed(() => otherMariners.value.length);
+    
+    // Mortality analysis computed properties
+    const diedAtSeaCount = computed(() => {
+      return mariners.value.filter(m => m.died_at_sea === true || m.died_at_sea === 1).length;
+    });
+    
+    const unknownDeathLocationCount = computed(() => {
+      return mariners.value.filter(m => m.died_at_sea === null || m.died_at_sea === undefined).length;
+    });
+    
+    const marinersWithCOD = computed(() => {
+      return mariners.value.filter(m => m.cod && m.cod.trim() !== '').length;
+    });
     
     // Calculate percentages
     const shetlandPercentage = computed(() => {
@@ -2021,6 +2207,12 @@ export default {
       deathYearPercentage,
       longestLife,
       shortestLife,
+      // Mortality Analysis
+      diedAtSeaChartOption,
+      causeOfDeathChartOption,
+      diedAtSeaCount,
+      unknownDeathLocationCount,
+      marinersWithCOD,
       // Crew Overlap Report
       isLoadingCrew,
       crewOverlaps,
