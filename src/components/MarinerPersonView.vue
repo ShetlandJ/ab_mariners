@@ -73,7 +73,7 @@
           <hr />
           <div class="flex items-center">
             <span class="w-32 font-medium text-gray-600 dark:text-gray-300">Bayanne ID:</span>
-            <span v-if="!editingBayanneId" class="flex items-center gap-2">
+            <span v-if="!editingBayanneId" class="flex items-center">
               <span v-if="mariner.bayanne_id" class="text-gray-900 dark:text-white">
                 <button
                   @click="openBayanneProfile(mariner.bayanne_id)"
@@ -86,7 +86,7 @@
               <button
                 v-if="!mariner.bayanne_id"
                 @click="startEditingBayanneId"
-                class="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 cursor-pointer"
+                class="text-xs px-2 mr-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 cursor-pointer"
               >
                 Add
               </button>
