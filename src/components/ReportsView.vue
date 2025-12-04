@@ -166,30 +166,47 @@
           </div>
         </div>
         
-        <!-- Age Distribution (Placeholder/Coming Soon) -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow duration-200 border-l-4 border-gray-400 opacity-75">
+        <!-- Age Distribution Report Card -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow duration-200 border-l-4 border-orange-500">
           <div class="flex justify-between items-center mb-4">
-            <h2 class="text-xl font-semibold dark:text-white">Age Distribution</h2>
-            <span class="text-sm text-gray-600 dark:text-gray-400 font-medium bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">Coming Soon</span>
+            <h2 class="text-xl font-semibold dark:text-white">Age & Mortality Analysis</h2>
+            <span class="text-sm text-orange-600 dark:text-orange-400 font-medium bg-orange-100 dark:bg-orange-900/30 px-2 py-1 rounded">Demographics</span>
           </div>
           
           <p class="text-gray-600 dark:text-gray-300 mb-4">
-            Analysis of mariners by age distribution and life expectancy.
+            Analysis of birth years, age at death, and mortality trends over time.
           </p>
           
-          <div class="flex flex-col items-center justify-center h-60 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 dark:text-gray-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <p class="text-gray-500 dark:text-gray-400 text-center">This report is under development<br>and will be available soon.</p>
+          <div v-if="isLoading" class="flex justify-center py-8">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500"></div>
+          </div>
+          
+          <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-2">
+            <div class="bg-orange-50 dark:bg-gray-700 p-3 rounded-lg">
+              <h3 class="text-sm font-medium text-orange-700 dark:text-orange-300">Avg Age at Death</h3>
+              <p class="text-2xl font-bold text-orange-800 dark:text-orange-200">{{ averageAgeAtDeath }}</p>
+            </div>
+            
+            <div class="bg-blue-50 dark:bg-gray-700 p-3 rounded-lg">
+              <h3 class="text-sm font-medium text-blue-700 dark:text-blue-300">With Birth Year</h3>
+              <p class="text-2xl font-bold text-blue-800 dark:text-blue-200">{{ marinersWithBirthYear }}</p>
+            </div>
+            
+            <div class="bg-purple-50 dark:bg-gray-700 p-3 rounded-lg">
+              <h3 class="text-sm font-medium text-purple-700 dark:text-purple-300">With Death Year</h3>
+              <p class="text-2xl font-bold text-purple-800 dark:text-purple-200">{{ marinersWithDeathYear }}</p>
+            </div>
           </div>
           
           <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end">
             <button 
-              disabled
-              class="px-4 py-2 bg-gray-400 text-white rounded-md cursor-not-allowed opacity-50 text-sm flex items-center"
+              @click="activateReport('age-analysis')"
+              class="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-600 text-sm flex items-center"
             >
-              <span>Coming Soon</span>
+              <span>View Full Report</span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
             </button>
           </div>
         </div>
@@ -631,8 +648,8 @@
               <!-- Pagination -->
               <div class="flex items-center justify-between mt-4">
                 <div class="text-sm text-gray-700 dark:text-gray-300">
-                  Showing <span class="font-medium">{{ (crewCurrentPage - 1) * ITEMS_PER_PAGE + 1 }}</span> to 
-                  <span class="font-medium">{{ Math.min(crewCurrentPage * ITEMS_PER_PAGE, crewTotalCount) }}</span> of 
+                  Showing <span class="font-medium">{{ (crewCurrentPage - 1) * itemsPerPage + 1 }}</span> to 
+                  <span class="font-medium">{{ Math.min(crewCurrentPage * itemsPerPage, crewTotalCount) }}</span> of 
                   <span class="font-medium">{{ crewTotalCount }}</span> overlaps
                 </div>
                 <div class="flex space-x-2">
@@ -807,8 +824,8 @@
               <!-- Pagination -->
               <div class="flex items-center justify-between mt-4">
                 <div class="text-sm text-gray-700 dark:text-gray-300">
-                  Showing <span class="font-medium">{{ (shipCrewPage - 1) * ITEMS_PER_PAGE + 1 }}</span> to 
-                  <span class="font-medium">{{ Math.min(shipCrewPage * ITEMS_PER_PAGE, shipCrewTotal) }}</span> of 
+                  Showing <span class="font-medium">{{ ((shipCrewPage || 1) - 1) * itemsPerPage + 1 }}</span> to 
+                  <span class="font-medium">{{ Math.min((shipCrewPage || 1) * itemsPerPage, shipCrewTotal) }}</span> of 
                   <span class="font-medium">{{ shipCrewTotal }}</span> crew members
                 </div>
                 <div class="flex space-x-2">
@@ -834,22 +851,124 @@
           </div>
         </div>
       </div>
+
+      <!-- Age Analysis Report -->
+      <div v-if="activeReport === 'age-analysis'">
+        <div class="flex items-center mb-6">
+          <button 
+            @click="activeReport = null" 
+            class="flex items-center text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Reports
+          </button>
+          <h1 class="text-2xl font-bold dark:text-white">Age & Mortality Analysis</h1>
+        </div>
+
+        <div class="space-y-6">
+          <!-- Key Statistics -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold mb-4 dark:text-white">Key Statistics</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              <div class="bg-orange-50 dark:bg-gray-700 p-4 rounded-lg">
+                <h3 class="text-sm font-medium text-orange-700 dark:text-orange-300">Average Age at Death</h3>
+                <p class="text-3xl font-bold text-orange-800 dark:text-orange-200">{{ averageAgeAtDeath }}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Based on {{ marinersWithBothDates }} mariners</p>
+              </div>
+              
+              <div class="bg-blue-50 dark:bg-gray-700 p-4 rounded-lg">
+                <h3 class="text-sm font-medium text-blue-700 dark:text-blue-300">Mariners with Birth Year</h3>
+                <p class="text-3xl font-bold text-blue-800 dark:text-blue-200">{{ marinersWithBirthYear }}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">{{ birthYearPercentage }}% of total</p>
+              </div>
+              
+              <div class="bg-purple-50 dark:bg-gray-700 p-4 rounded-lg">
+                <h3 class="text-sm font-medium text-purple-700 dark:text-purple-300">Mariners with Death Year</h3>
+                <p class="text-3xl font-bold text-purple-800 dark:text-purple-200">{{ marinersWithDeathYear }}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">{{ deathYearPercentage }}% of total</p>
+              </div>
+              
+              <div class="bg-green-50 dark:bg-gray-700 p-4 rounded-lg">
+                <h3 class="text-sm font-medium text-green-700 dark:text-green-300">Complete Records</h3>
+                <p class="text-3xl font-bold text-green-800 dark:text-green-200">{{ marinersWithBothDates }}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">Both birth & death years</p>
+              </div>
+              
+              <div 
+                @click="longestLife.person_id && navigateToMariner(longestLife.person_id)"
+                class="bg-indigo-50 dark:bg-gray-700 p-4 rounded-lg"
+                :class="{ 'cursor-pointer hover:bg-indigo-100 dark:hover:bg-gray-600 transition-colors': longestLife.person_id }"
+              >
+                <h3 class="text-sm font-medium text-indigo-700 dark:text-indigo-300">Longest Life</h3>
+                <p class="text-3xl font-bold text-indigo-800 dark:text-indigo-200">{{ longestLife.age }}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">{{ longestLife.name }}</p>
+              </div>
+              
+              <div 
+                @click="shortestLife.person_id && navigateToMariner(shortestLife.person_id)"
+                class="bg-red-50 dark:bg-gray-700 p-4 rounded-lg"
+                :class="{ 'cursor-pointer hover:bg-red-100 dark:hover:bg-gray-600 transition-colors': shortestLife.person_id }"
+              >
+                <h3 class="text-sm font-medium text-red-700 dark:text-red-300">Shortest Life</h3>
+                <p class="text-3xl font-bold text-red-800 dark:text-red-200">{{ shortestLife.age }}</p>
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">{{ shortestLife.name }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Birth Year Trend Chart -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold mb-4 dark:text-white">Births by Year</h2>
+            <p class="text-gray-600 dark:text-gray-300 mb-4">
+              Distribution of mariner birth years over time (only valid years shown).
+            </p>
+            <div class="h-96">
+              <v-chart 
+                :key="'birth-' + chartRenderKey" 
+                class="w-full h-full" 
+                :option="birthYearChartOption" 
+                autoresize 
+              />
+            </div>
+          </div>
+
+          <!-- Age at Death Distribution Chart -->
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold mb-4 dark:text-white">Age at Death Distribution</h2>
+            <p class="text-gray-600 dark:text-gray-300 mb-4">
+              Distribution of ages at death for mariners with both birth and death years recorded.
+            </p>
+            <div class="h-96">
+              <v-chart 
+                :key="'death-' + chartRenderKey" 
+                class="w-full h-full" 
+                :option="ageAtDeathChartOption" 
+                autoresize 
+              />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script>
 import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import database from '../services/database';
 import { getStandardizedPlace } from '../data/birthplaces';
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import { PieChart } from 'echarts/charts';
+import { PieChart, LineChart, BarChart } from 'echarts/charts';
 import {
   TitleComponent,
   TooltipComponent,
   LegendComponent,
-  ToolboxComponent
+  ToolboxComponent,
+  GridComponent
 } from 'echarts/components';
 import VChart from 'vue-echarts';
 import { usePagination } from '../composables/usePagination';
@@ -858,10 +977,13 @@ import { usePagination } from '../composables/usePagination';
 use([
   CanvasRenderer,
   PieChart,
+  LineChart,
+  BarChart,
   TitleComponent,
   TooltipComponent,
   LegendComponent,
-  ToolboxComponent
+  ToolboxComponent,
+  GridComponent
 ]);
 
 const ITEMS_PER_PAGE = 15;
@@ -872,6 +994,7 @@ export default {
     VChart
   },
   setup() {
+    const router = useRouter();
     const isLoading = ref(true);
     const mariners = ref([]);
     const chartOption = ref({});
@@ -883,6 +1006,10 @@ export default {
     const showingOtherDetails = ref(false);
     const otherPlacesData = ref([]);
     const activeReport = ref(null);
+    
+    // Age analysis chart options
+    const birthYearChartOption = ref({});
+    const ageAtDeathChartOption = ref({});
     
     // Placeholders for additional statistics
     const missingBirthInfo = ref(0);
@@ -905,6 +1032,7 @@ export default {
               
               // Update chart with new theme
               generateChartData();
+              generateAgeAnalysisCharts();
               
               // Force chart recreation
               chartRenderKey.value++;
@@ -936,6 +1064,7 @@ export default {
         
         // Generate chart data once we have the mariners
         generateChartData();
+        generateAgeAnalysisCharts();
         updateAvailableLocations();
       } catch (error) {
         console.error('Error loading mariner data:', error);
@@ -1202,6 +1331,139 @@ export default {
       availableLocations.value = Array.from(locations).sort();
     };
 
+    const generateAgeAnalysisCharts = () => {
+      // Generate Birth Year Trend Chart
+      const birthYearData = {};
+      mariners.value.forEach(m => {
+        const year = m.year_of_birth;
+        if (year && !isNaN(year) && year >= 1600 && year <= 2100) {
+          birthYearData[year] = (birthYearData[year] || 0) + 1;
+        }
+      });
+      
+      const birthYears = Object.keys(birthYearData).sort((a, b) => a - b);
+      const birthCounts = birthYears.map(year => birthYearData[year]);
+      
+      birthYearChartOption.value = {
+        title: {
+          text: 'Births by Year',
+          left: 'center',
+          textStyle: {
+            color: isDarkModeActive.value ? '#fff' : '#333'
+          }
+        },
+        tooltip: {
+          trigger: 'axis',
+          formatter: '{b}: {c} mariners'
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '3%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          data: birthYears,
+          axisLabel: {
+            color: isDarkModeActive.value ? '#fff' : '#333',
+            rotate: 45
+          }
+        },
+        yAxis: {
+          type: 'value',
+          name: 'Number of Mariners',
+          axisLabel: {
+            color: isDarkModeActive.value ? '#fff' : '#333'
+          },
+          nameTextStyle: {
+            color: isDarkModeActive.value ? '#fff' : '#333'
+          }
+        },
+        series: [{
+          data: birthCounts,
+          type: 'line',
+          smooth: true,
+          itemStyle: {
+            color: '#3b82f6'
+          },
+          areaStyle: {
+            color: isDarkModeActive.value ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.2)'
+          }
+        }]
+      };
+      
+      // Generate Age at Death Distribution Chart
+      const ageAtDeathData = {};
+      mariners.value.forEach(m => {
+        const birth = m.year_of_birth;
+        const death = m.year_of_death;
+        if (birth && death && 
+            !isNaN(birth) && !isNaN(death) &&
+            birth >= 1600 && birth <= 2100 &&
+            death >= 1600 && death <= 2100 &&
+            death >= birth) {
+          const age = death - birth;
+          // Group into 5-year buckets
+          const bucket = Math.floor(age / 5) * 5;
+          ageAtDeathData[bucket] = (ageAtDeathData[bucket] || 0) + 1;
+        }
+      });
+      
+      const ageBuckets = Object.keys(ageAtDeathData).sort((a, b) => a - b);
+      const ageCounts = ageBuckets.map(bucket => ageAtDeathData[bucket]);
+      const ageLabels = ageBuckets.map(bucket => `${bucket}-${parseInt(bucket) + 4}`);
+      
+      ageAtDeathChartOption.value = {
+        title: {
+          text: 'Age at Death Distribution',
+          left: 'center',
+          textStyle: {
+            color: isDarkModeActive.value ? '#fff' : '#333'
+          }
+        },
+        tooltip: {
+          trigger: 'axis',
+          formatter: '{b} years: {c} mariners'
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '3%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          data: ageLabels,
+          name: 'Age Range (years)',
+          axisLabel: {
+            color: isDarkModeActive.value ? '#fff' : '#333',
+            rotate: 45
+          },
+          nameTextStyle: {
+            color: isDarkModeActive.value ? '#fff' : '#333'
+          }
+        },
+        yAxis: {
+          type: 'value',
+          name: 'Number of Mariners',
+          axisLabel: {
+            color: isDarkModeActive.value ? '#fff' : '#333'
+          },
+          nameTextStyle: {
+            color: isDarkModeActive.value ? '#fff' : '#333'
+          }
+        },
+        series: [{
+          data: ageCounts,
+          type: 'bar',
+          itemStyle: {
+            color: '#f97316'
+          }
+        }]
+      };
+    };
+
     const handleChartClick = params => {
       if (params.name === 'Other') {
         // When "Other" is clicked, show the breakdown of other places
@@ -1236,6 +1498,10 @@ export default {
       activeReport.value = reportType;
       // Reset pagination when switching reports
       currentPage.value = 1;
+    };
+
+    const navigateToMariner = (personId) => {
+      router.push(`/mariners/${personId}`);
     };
 
     const getReportTitle = (reportType) => {
@@ -1275,6 +1541,115 @@ export default {
     });
     
     const shetlandCount = computed(() => shetlandMariners.value.length);
+    
+    // Age analysis computed properties
+    const marinersWithBirthYear = computed(() => {
+      return mariners.value.filter(m => {
+        const year = m.year_of_birth;
+        return year && !isNaN(year) && year >= 1600 && year <= 2100;
+      }).length;
+    });
+    
+    const marinersWithDeathYear = computed(() => {
+      return mariners.value.filter(m => {
+        const year = m.year_of_death;
+        return year && !isNaN(year) && year >= 1600 && year <= 2100;
+      }).length;
+    });
+    
+    const marinersWithBothDates = computed(() => {
+      return mariners.value.filter(m => {
+        const birth = m.year_of_birth;
+        const death = m.year_of_death;
+        return birth && death && 
+               !isNaN(birth) && !isNaN(death) &&
+               birth >= 1600 && birth <= 2100 &&
+               death >= 1600 && death <= 2100 &&
+               death >= birth;
+      }).length;
+    });
+    
+    const averageAgeAtDeath = computed(() => {
+      const marinersWithAge = mariners.value.filter(m => {
+        const birth = m.year_of_birth;
+        const death = m.year_of_death;
+        return birth && death && 
+               !isNaN(birth) && !isNaN(death) &&
+               birth >= 1600 && birth <= 2100 &&
+               death >= 1600 && death <= 2100 &&
+               death >= birth;
+      });
+      
+      if (marinersWithAge.length === 0) return 'N/A';
+      
+      const totalAge = marinersWithAge.reduce((sum, m) => {
+        return sum + (m.year_of_death - m.year_of_birth);
+      }, 0);
+      
+      return Math.round(totalAge / marinersWithAge.length);
+    });
+    
+    const birthYearPercentage = computed(() => {
+      if (totalMariners.value === 0) return 0;
+      return Math.round((marinersWithBirthYear.value / totalMariners.value) * 100);
+    });
+    
+    const deathYearPercentage = computed(() => {
+      if (totalMariners.value === 0) return 0;
+      return Math.round((marinersWithDeathYear.value / totalMariners.value) * 100);
+    });
+    
+    const longestLife = computed(() => {
+      const marinersWithAge = mariners.value.filter(m => {
+        const birth = m.year_of_birth;
+        const death = m.year_of_death;
+        return birth && death && 
+               !isNaN(birth) && !isNaN(death) &&
+               birth >= 1600 && birth <= 2100 &&
+               death >= 1600 && death <= 2100 &&
+               death >= birth;
+      });
+      
+      if (marinersWithAge.length === 0) return { age: 'N/A', name: 'N/A' };
+      
+      const oldest = marinersWithAge.reduce((max, m) => {
+        const age = m.year_of_death - m.year_of_birth;
+        const maxAge = max.year_of_death - max.year_of_birth;
+        return age > maxAge ? m : max;
+      });
+      
+      return {
+        age: oldest.year_of_death - oldest.year_of_birth,
+        name: `${oldest.forename} ${oldest.surname}`,
+        person_id: oldest.person_id
+      };
+    });
+    
+    const shortestLife = computed(() => {
+      const marinersWithAge = mariners.value.filter(m => {
+        const birth = m.year_of_birth;
+        const death = m.year_of_death;
+        return birth && death && 
+               !isNaN(birth) && !isNaN(death) &&
+               birth >= 1600 && birth <= 2100 &&
+               death >= 1600 && death <= 2100 &&
+               death >= birth;
+      });
+      
+      if (marinersWithAge.length === 0) return { age: 'N/A', name: 'N/A' };
+      
+      const youngest = marinersWithAge.reduce((min, m) => {
+        const age = m.year_of_death - m.year_of_birth;
+        const minAge = min.year_of_death - min.year_of_birth;
+        return age < minAge ? m : min;
+      });
+      
+      return {
+        age: youngest.year_of_death - youngest.year_of_birth,
+        name: `${youngest.forename} ${youngest.surname}`,
+        person_id: youngest.person_id
+      };
+    });
     
     // Count mariners from other places
     const otherMariners = computed(() => {
@@ -1561,12 +1936,12 @@ export default {
       const start = crewMember.start_date ? new Date(crewMember.start_date) : null;
       const end = crewMember.end_date ? new Date(crewMember.end_date) : null;
 
-      if (!start || !end) return '';
+      if (!start || !end || isNaN(start.getTime()) || isNaN(end.getTime())) return '';
 
       const durationMs = end.getTime() - start.getTime();
       const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
 
-      if (durationDays < 0) return '';
+      if (durationDays < 0 || isNaN(durationDays)) return '';
 
       if (durationDays === 0) {
         return 'Same day';
@@ -1579,6 +1954,7 @@ export default {
         return `~${months} ${months === 1 ? 'month' : 'months'}`;
       } else {
         const years = Math.round(durationDays / 365 * 10) / 10;
+        if (isNaN(years)) return '';
         return `~${years} ${years === 1 ? 'year' : 'years'}`;
       }
     };
@@ -1627,12 +2003,24 @@ export default {
       returnToMainChart,
       activeReport,
       activateReport,
+      navigateToMariner,
       getReportTitle,
       generatePreviewChartOption,
       // Additional stats for extended reports
       missingBirthInfo,
       missingDeathInfo,
       marinersWithShips,
+      // Age Analysis Report
+      birthYearChartOption,
+      ageAtDeathChartOption,
+      marinersWithBirthYear,
+      marinersWithDeathYear,
+      marinersWithBothDates,
+      averageAgeAtDeath,
+      birthYearPercentage,
+      deathYearPercentage,
+      longestLife,
+      shortestLife,
       // Crew Overlap Report
       isLoadingCrew,
       crewOverlaps,
