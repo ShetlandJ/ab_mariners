@@ -5,6 +5,7 @@ import SearchView from '../components/SearchView.vue';
 import MarinerPersonView from '../components/MarinerPersonView.vue';
 import ReportsView from '../components/ReportsView.vue';
 import BackupView from '../components/BackupView.vue';
+import MergeView from '../components/MergeView.vue';
 
 const routes = [
   {
@@ -41,6 +42,11 @@ const routes = [
     path: '/backup',
     name: 'Backup',
     component: BackupView
+  },
+  {
+    path: '/merge',
+    name: 'Merge',
+    component: MergeView
   }
 ];
 

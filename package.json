@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "postinstall": "electron-rebuild -f -w better-sqlite3",
     "seed": "electron src/scripts/seed.js",
-    "fresh": "yarn install && yarn dev"
+    "fresh": "yarn install && yarn dev",
+    "migrate": "node scripts/run-migrations.js"
   },
   "dependencies": {
     "@electron/remote": "^2.0.10",

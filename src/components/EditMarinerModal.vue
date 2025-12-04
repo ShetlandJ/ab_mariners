@@ -81,6 +81,49 @@
               <input type="text" v-model="form.remittence" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
             </div>
 
+            <!-- External IDs Section -->
+            <div class="col-span-2">
+              <h3 class="font-semibold text-lg mb-2 mt-4 border-b pb-1 dark:border-gray-700 dark:text-white">External IDs</h3>
+            </div>
+
+            <div class="mb-4">
+              <label class="block text-sm font-medium mb-1 dark:text-white">
+                Bayanne ID
+                <span class="text-xs text-gray-500 dark:text-gray-400 ml-1">(must be ≥ 1 or empty)</span>
+              </label>
+              <input 
+                type="number" 
+                v-model.number="form.bayanne_id" 
+                min="1"
+                step="1"
+                class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                :class="{ 'border-red-500': validationErrors.bayanne_id }"
+                @input="validateExternalId('bayanne_id', $event)"
+              />
+              <p v-if="validationErrors.bayanne_id" class="text-red-500 text-xs mt-1">
+                {{ validationErrors.bayanne_id }}
+              </p>
+            </div>
+
+            <div class="mb-4">
+              <label class="block text-sm font-medium mb-1 dark:text-white">
+                SFHS ID
+                <span class="text-xs text-gray-500 dark:text-gray-400 ml-1">(Shetland Family History Society)</span>
+              </label>
+              <input 
+                type="number" 
+                v-model.number="form.sfhs_id" 
+                min="1"
+                step="1"
+                class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                :class="{ 'border-red-500': validationErrors.sfhs_id }"
+                @input="validateExternalId('sfhs_id', $event)"
+              />
+              <p v-if="validationErrors.sfhs_id" class="text-red-500 text-xs mt-1">
+                {{ validationErrors.sfhs_id }}
+              </p>
+            </div>
+
             <!-- Financial Information -->
             <div class="col-span-2">
               <h3 class="font-semibold text-lg mb-2 mt-4 border-b pb-1 dark:border-gray-700 dark:text-white">Financial & Other Information</h3>
@@ -300,7 +343,8 @@
             </button>
             <button 
               type="submit" 
-              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
+              :disabled="hasValidationErrors"
+              class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {{ isCreating ? 'Create Mariner' : 'Save Changes' }}
             </button>
@@ -350,7 +394,14 @@ export default {
       grenpen: '',
       freetext: '',
       cod: '',
-      shiplist: ''
+      shiplist: '',
+      bayanne_id: null,
+      sfhs_id: null
+    });
+    
+    const validationErrors = reactive({
+      bayanne_id: '',
+      sfhs_id: ''
     });
     
     // Ship assignment functionality
@@ -371,6 +422,10 @@ export default {
         Object.keys(form).forEach(key => {
           form[key] = props.mariner[key] !== undefined ? props.mariner[key] : '';
         });
+        
+        // Clear validation errors when modal opens
+        validationErrors.bayanne_id = '';
+        validationErrors.sfhs_id = '';
         
         // Load ship assignments for existing mariners
         if (!props.isCreating) {          
@@ -558,16 +613,59 @@ export default {
       }
     };
 
+    // Validation function for external IDs
+    const validateExternalId = (fieldName, event) => {
+      const value = event.target.value;
+      
+      if (value === '' || value === null) {
+        validationErrors[fieldName] = '';
+        form[fieldName] = null;
+        return;
+      }
+      
+      const numValue = parseInt(value, 10);
+      
+      if (isNaN(numValue) || numValue < 1) {
+        validationErrors[fieldName] = 'Must be a number greater than or equal to 1';
+        return;
+      }
+      
+      validationErrors[fieldName] = '';
+      form[fieldName] = numValue;
+    };
+
+    // Computed property to check if there are validation errors
+    const hasValidationErrors = computed(() => {
+      return !!(validationErrors.bayanne_id || validationErrors.sfhs_id);
+    });
+
     // Close the modal
     function closeModal() {
+      // Clear validation errors when closing
+      validationErrors.bayanne_id = '';
+      validationErrors.sfhs_id = '';
       emit('close');
     }
 
     // Save the mariner changes
     async function saveChanges() {
+      // Validate before saving
+      if (hasValidationErrors.value) {
+        alert('Please fix validation errors before saving');
+        return;
+      }
+      
       try {
         // Copy form values to a new object
         const updatedMariner = { ...form };
+        
+        // Ensure external IDs are null if empty
+        if (updatedMariner.bayanne_id === '' || updatedMariner.bayanne_id === 0) {
+          updatedMariner.bayanne_id = null;
+        }
+        if (updatedMariner.sfhs_id === '' || updatedMariner.sfhs_id === 0) {
+          updatedMariner.sfhs_id = null;
+        }
         
         if (props.isCreating) {
           // Create new mariner
@@ -596,6 +694,9 @@ export default {
 
     return {
       form,
+      validationErrors,
+      hasValidationErrors,
+      validateExternalId,
       shipAssignments,
       shipSearchTerm,
       shipSearchResults,

@@ -1,8 +1,9 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 const { enableHMR } = require('./dev-config');
+const { runMigrations } = require('../src/migrations/migrationRunner');
 require('@electron/remote/main').initialize();
 
 let mainWindow;
@@ -28,6 +29,15 @@ async function initDatabase() {
     await db.exec('PRAGMA busy_timeout = 10000;');
     
     console.log('Database connected successfully');
+    
+    // Run migrations automatically
+    console.log('Checking for pending migrations...');
+    try {
+      await runMigrations(db);
+    } catch (error) {
+      console.error('Migration error:', error);
+      // Don't throw - allow app to continue even if migrations fail
+    }
   } catch (error) {
     console.error('Database connection error:', error);
   }
@@ -79,6 +89,71 @@ function createWindow() {
 
 // Set up IPC handlers for database operations
 function setupIpcHandlers() {
+  // Handler to open external URLs in the system's default browser
+  ipcMain.handle('open-external', async (event, url) => {
+    try {
+      await shell.openExternal(url);
+      return { success: true };
+    } catch (error) {
+      console.error('Error opening external URL:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Handler to merge two sailors into one
+  ipcMain.handle('merge-sailors', async (event, primaryId, secondaryId, mergedData) => {
+    try {
+      console.log('Starting merge:', { primaryId, secondaryId, mergedData });
+      
+      // Begin transaction
+      await db.run('BEGIN TRANSACTION');
+
+      // Build the UPDATE query for the primary sailor with merged data
+      // Filter out person_id since we don't want to update the ID itself
+      const fields = Object.keys(mergedData).filter(key => key !== 'person_id' && key !== 'id');
+      const setClause = fields.map(field => `${field} = ?`).join(', ');
+      const values = fields.map(field => mergedData[field]);
+
+      console.log('Update fields:', fields);
+      console.log('Update values:', values);
+
+      if (fields.length > 0) {
+        // Update the primary sailor with merged field values
+        const updateQuery = `UPDATE person SET ${setClause} WHERE person_id = ?`;
+        console.log('Update query:', updateQuery);
+        await db.run(updateQuery, [...values, primaryId]);
+      }
+
+      // Reassign all ship assignments from secondary sailor to primary sailor
+      console.log('Reassigning ship assignments...');
+      await db.run(
+        `UPDATE person_ship SET person_id = ? WHERE person_id = ?`,
+        [primaryId, secondaryId]
+      );
+
+      // Delete the secondary sailor
+      console.log('Deleting secondary sailor...');
+      await db.run(
+        `DELETE FROM person WHERE person_id = ?`,
+        [secondaryId]
+      );
+
+      // Commit transaction
+      await db.run('COMMIT');
+      console.log('Merge completed successfully');
+
+      return { success: true };
+    } catch (error) {
+      console.error('Error merging sailors:', error);
+      try {
+        await db.run('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('Error rolling back:', rollbackError);
+      }
+      return { success: false, error: error.message };
+    }
+  });
+
   ipcMain.handle('get-mariners-count', async (event, searchTerm = '') => {
     try {
       if (searchTerm) {

@@ -65,5 +65,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getBackupHistory: () => {
       return ipcRenderer.invoke('get-backup-history');
     }
+  },
+  // External link handler
+  openExternal: (url) => {
+    return ipcRenderer.invoke('open-external', url);
+  },
+  // Merge sailors
+  mergeSailors: (primaryId, secondaryId, mergedData) => {
+    return ipcRenderer.invoke('merge-sailors', primaryId, secondaryId, mergedData);
   }
 });

@@ -1,16 +1,24 @@
 <template>
   <div class="mariner-person-view p-4">
-    <div class="flex items-center mb-6">
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center">
+        <button 
+          @click="goBack" 
+          class="flex items-center text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 focus:outline-none mr-4"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          Back
+        </button>
+        <h1 class="text-2xl font-bold dark:text-white">{{ marinerName }}</h1>
+      </div>
       <button 
-        @click="goBack" 
-        class="flex items-center text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 focus:outline-none mr-4"
+        @click="editMariner" 
+        class="btn btn-primary dark:bg-blue-700 dark:hover:bg-blue-600 dark:text-white"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-        </svg>
-        Back
+        Edit Mariner
       </button>
-      <h1 class="text-2xl font-bold dark:text-white">{{ marinerName }}</h1>
     </div>
 
     <div v-if="loading" class="flex justify-center items-center h-32">
@@ -43,6 +51,10 @@
             <span class="text-gray-900 dark:text-white">{{ mariner.year_of_birth || 'Unknown' }}</span>
           </div>
           <div class="flex">
+            <span class="w-32 font-medium text-gray-600 dark:text-gray-300">Birthplace:</span>
+            <span class="text-gray-900 dark:text-white">{{ mariner.place_of_birth || 'Unknown' }}</span>
+          </div>
+          <div class="flex">
             <span class="w-32 font-medium text-gray-600 dark:text-gray-300">Death Year:</span>
             <span class="text-gray-900 dark:text-white">{{ mariner.year_of_death || 'Unknown' }}</span>
           </div>
@@ -54,13 +66,99 @@
               <span v-else>Unknown</span>
             </span>
           </div>
-          <div class="flex">
-            <span class="w-32 font-medium text-gray-600 dark:text-gray-300">Birthplace:</span>
-            <span class="text-gray-900 dark:text-white">{{ mariner.place_of_birth || 'Unknown' }}</span>
-          </div>
           <div v-if="mariner.cod" class="flex">
             <span class="w-32 font-medium text-gray-600 dark:text-gray-300">Cause of Death:</span>
             <span class="text-gray-900 dark:text-white">{{ mariner.cod }}</span>
+          </div>
+          <hr />
+          <div class="flex items-center">
+            <span class="w-32 font-medium text-gray-600 dark:text-gray-300">Bayanne ID:</span>
+            <span v-if="!editingBayanneId" class="flex items-center gap-2">
+              <span v-if="mariner.bayanne_id" class="text-gray-900 dark:text-white">
+                <button
+                  @click="openBayanneProfile(mariner.bayanne_id)"
+                  class="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline cursor-pointer bg-transparent border-none p-0"
+                >
+                  {{ mariner.bayanne_id }}
+                </button>
+              </span>
+              <span v-else class="text-gray-900 dark:text-white mr-2">-</span>
+              <button
+                v-if="!mariner.bayanne_id"
+                @click="startEditingBayanneId"
+                class="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 cursor-pointer"
+              >
+                Add
+              </button>
+              <button
+                v-else
+                @click="startEditingBayanneId"
+                class="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 cursor-pointer"
+              >
+                Edit
+              </button>
+              <button
+                v-if="!mariner.bayanne_id"
+                @click="openBayanneSearch()"
+                class="text-xs px-2 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 cursor-pointer"
+              >
+                Search Bayanne
+              </button>
+            </span>
+            <span v-else class="flex items-center gap-2">
+              <input
+                v-model="bayanneIdInput"
+                type="number"
+                min="1"
+                placeholder="Enter ID"
+                class="w-32 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+              <button
+                @click="saveBayanneId"
+                class="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 cursor-pointer"
+              >
+                Save
+              </button>
+              <button
+                @click="cancelBayanneIdEdit"
+                class="text-xs px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 cursor-pointer"
+              >
+                Cancel
+              </button>
+            </span>
+          </div>
+          <div class="flex items-center">
+            <span class="w-32 font-medium text-gray-600 dark:text-gray-300">SFHS ID:</span>
+            <span v-if="!editingSfhsId" class="flex items-center gap-2">
+              <span class="text-gray-900 dark:text-white">{{ mariner.sfhs_id || '-' }}</span>
+              <button
+                @click="startEditingSfhsId"
+                class="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 cursor-pointer"
+              >
+                {{ mariner.sfhs_id ? 'Edit' : 'Add' }}
+              </button>
+            </span>
+            <span v-else class="flex items-center gap-2">
+              <input
+                v-model="sfhsIdInput"
+                type="number"
+                min="1"
+                placeholder="Enter ID"
+                class="w-32 px-2 py-1 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+              <button
+                @click="saveSfhsId"
+                class="text-xs px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 cursor-pointer"
+              >
+                Save
+              </button>
+              <button
+                @click="cancelSfhsIdEdit"
+                class="text-xs px-2 py-1 bg-gray-500 text-white rounded hover:bg-gray-600 cursor-pointer"
+              >
+                Cancel
+              </button>
+            </span>
           </div>
         </div>
       </div>
@@ -274,18 +372,12 @@
       </div>
     </div>
 
-    <div class="mt-6 flex justify-end space-x-3">
+    <div class="mt-6 flex justify-end">
       <button 
         @click="deleteMariner" 
         class="btn bg-red-600 hover:bg-red-700 text-white dark:bg-red-700 dark:hover:bg-red-600 dark:text-white"
       >
         Delete Mariner
-      </button>
-      <button 
-        @click="editMariner" 
-        class="btn btn-primary dark:bg-blue-700 dark:hover:bg-blue-600 dark:text-white"
-      >
-        Edit Mariner
       </button>
     </div>
 
@@ -331,6 +423,12 @@ export default {
     const addShipError = ref(null);
     const addingShip = ref(false);
     const shipSelectionMethod = ref('search');
+    
+    // Inline editing state for external IDs
+    const editingBayanneId = ref(false);
+    const editingSfhsId = ref(false);
+    const bayanneIdInput = ref(null);
+    const sfhsIdInput = ref(null);
     const shipSearch = ref('');
     const searchResults = ref({ ships: [] });
     const searchPerformed = ref(false);
@@ -465,6 +563,100 @@ export default {
       }
     }
 
+    function getBayanneProfileUrl(bayanneId) {
+      return `https://www.bayanne.info/Shetland/getperson.php?personID=I${bayanneId}&tree=ID1`;
+    }
+
+    function getBayanneSearchUrl() {
+      const params = new URLSearchParams({
+        mybool: 'AND',
+        nr: '50',
+        tree: 'ID1',
+        branch: '',
+        mylastname: mariner.value.surname || '',
+        lnqualify: 'contains',
+        myfirstname: mariner.value.forename || '',
+        fnqualify: 'contains',
+        mybirthyear: mariner.value.year_of_birth || '',
+        byqualify: '',
+        mydeathyear: mariner.value.year_of_death || '',
+        dyqualify: ''
+      });
+      return `https://www.bayanne.info/Shetland/search.php?${params.toString()}`;
+    }
+
+    function openBayanneProfile(bayanneId) {
+      const url = getBayanneProfileUrl(bayanneId);
+      if (window.electronAPI && window.electronAPI.openExternal) {
+        window.electronAPI.openExternal(url);
+      } else {
+        window.open(url, '_blank');
+      }
+    }
+
+    function openBayanneSearch() {
+      const url = getBayanneSearchUrl();
+      if (window.electronAPI && window.electronAPI.openExternal) {
+        window.electronAPI.openExternal(url);
+      } else {
+        window.open(url, '_blank');
+      }
+    }
+
+    function startEditingBayanneId() {
+      editingBayanneId.value = true;
+      bayanneIdInput.value = mariner.value.bayanne_id || '';
+    }
+
+    function startEditingSfhsId() {
+      editingSfhsId.value = true;
+      sfhsIdInput.value = mariner.value.sfhs_id || '';
+    }
+
+    async function saveBayanneId() {
+      try {
+        const value = bayanneIdInput.value ? parseInt(bayanneIdInput.value) : null;
+        if (value !== null && (isNaN(value) || value < 1)) {
+          alert('Bayanne ID must be a number greater than 0');
+          return;
+        }
+        
+        await database.updateMariner(marinerId.value, { bayanne_id: value });
+        mariner.value.bayanne_id = value;
+        editingBayanneId.value = false;
+      } catch (err) {
+        console.error('Error saving Bayanne ID:', err);
+        alert('Failed to save Bayanne ID: ' + (err.message || 'Unknown error'));
+      }
+    }
+
+    async function saveSfhsId() {
+      try {
+        const value = sfhsIdInput.value ? parseInt(sfhsIdInput.value) : null;
+        if (value !== null && (isNaN(value) || value < 1)) {
+          alert('SFHS ID must be a number greater than 0');
+          return;
+        }
+        
+        await database.updateMariner(marinerId.value, { sfhs_id: value });
+        mariner.value.sfhs_id = value;
+        editingSfhsId.value = false;
+      } catch (err) {
+        console.error('Error saving SFHS ID:', err);
+        alert('Failed to save SFHS ID: ' + (err.message || 'Unknown error'));
+      }
+    }
+
+    function cancelBayanneIdEdit() {
+      editingBayanneId.value = false;
+      bayanneIdInput.value = null;
+    }
+
+    function cancelSfhsIdEdit() {
+      editingSfhsId.value = false;
+      sfhsIdInput.value = null;
+    }
+
     function deleteMariner() {
       showDeleteModal.value = true;
     }
@@ -505,6 +697,20 @@ export default {
       searchShips,
       selectShip,
       saveShipAssignment,
+      getBayanneProfileUrl,
+      getBayanneSearchUrl,
+      openBayanneProfile,
+      openBayanneSearch,
+      editingBayanneId,
+      editingSfhsId,
+      bayanneIdInput,
+      sfhsIdInput,
+      startEditingBayanneId,
+      startEditingSfhsId,
+      saveBayanneId,
+      saveSfhsId,
+      cancelBayanneIdEdit,
+      cancelSfhsIdEdit,
       deleteMariner,
       showDeleteModal,
       closeDeleteModal,
