@@ -32,7 +32,6 @@
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-200 uppercase tracking-wider bg-gray-50 dark:bg-gray-700">Birth Year</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-200 uppercase tracking-wider bg-gray-50 dark:bg-gray-700">Death Year</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-200 uppercase tracking-wider bg-gray-50 dark:bg-gray-700">Place of Birth</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-200 uppercase tracking-wider bg-gray-50 dark:bg-gray-700">External IDs</th>
             <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-200 uppercase tracking-wider bg-gray-50 dark:bg-gray-700">Actions</th>
           </tr>
         </thead>
@@ -47,17 +46,6 @@
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ mariner.year_of_birth || '-' }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ mariner.year_of_death || '-' }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ mariner.place_of_birth || '-' }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-              <div class="flex flex-col text-xs">
-                <span v-if="mariner.bayanne_id" class="mb-1">
-                  <span class="font-medium text-gray-700 dark:text-gray-200">B:</span> {{ mariner.bayanne_id }}
-                </span>
-                <span v-if="mariner.sfhs_id">
-                  <span class="font-medium text-gray-700 dark:text-gray-200">S:</span> {{ mariner.sfhs_id }}
-                </span>
-                <span v-if="!mariner.bayanne_id && !mariner.sfhs_id" class="text-gray-400">-</span>
-              </div>
-            </td>
             <td class="px-6 py-4 whitespace-nowrap text-center text-sm">
               <button 
                 @click="editMariner(mariner)" 
