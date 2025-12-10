@@ -101,9 +101,9 @@ function setupIpcHandlers() {
   });
 
   // Handler to merge two sailors into one
-  ipcMain.handle('merge-sailors', async (event, primaryId, secondaryId, mergedData) => {
+  ipcMain.handle('merge-sailors', async (event, primaryId, secondaryId, mergedData, deleteSecondary = true) => {
     try {
-      console.log('Starting merge:', { primaryId, secondaryId, mergedData });
+      console.log('Starting merge:', { primaryId, secondaryId, mergedData, deleteSecondary });
       
       // Begin transaction
       await db.run('BEGIN TRANSACTION');
@@ -131,18 +131,22 @@ function setupIpcHandlers() {
         [primaryId, secondaryId]
       );
 
-      // Delete the secondary sailor
-      console.log('Deleting secondary sailor...');
-      await db.run(
-        `DELETE FROM person WHERE person_id = ?`,
-        [secondaryId]
-      );
+      // Delete the secondary sailor only if deleteSecondary is true
+      if (deleteSecondary) {
+        console.log('Deleting secondary sailor...');
+        await db.run(
+          `DELETE FROM person WHERE person_id = ?`,
+          [secondaryId]
+        );
+      } else {
+        console.log('Keeping secondary sailor (merge and keep mode)');
+      }
 
       // Commit transaction
       await db.run('COMMIT');
       console.log('Merge completed successfully');
 
-      return { success: true };
+      return { success: true, keptSecondary: !deleteSecondary };
     } catch (error) {
       console.error('Error merging sailors:', error);
       try {

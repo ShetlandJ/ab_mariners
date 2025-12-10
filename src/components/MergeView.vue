@@ -274,11 +274,49 @@
             </div>
           </div>
 
-          <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-6">
+          <div class="border rounded-md p-4 mb-6 dark:border-gray-600">
+            <h4 class="font-medium mb-3 dark:text-white">Merge Mode</h4>
+            <div class="space-y-2">
+              <label class="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  v-model="mergeMode"
+                  value="remove"
+                  class="mr-2 w-4 h-4"
+                />
+                <div>
+                  <span class="font-medium dark:text-white">Merge and Remove</span>
+                  <p class="text-sm text-gray-600 dark:text-gray-400 ml-6">Delete the secondary sailor after merging data into the primary sailor</p>
+                </div>
+              </label>
+              <label class="flex items-center cursor-pointer">
+                <input
+                  type="radio"
+                  v-model="mergeMode"
+                  value="keep"
+                  class="mr-2 w-4 h-4"
+                />
+                <div>
+                  <span class="font-medium dark:text-white">Merge and Keep</span>
+                  <p class="text-sm text-gray-600 dark:text-gray-400 ml-6">Keep both sailors after merging data (useful for preserving records)</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div v-if="mergeMode === 'remove'" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-6">
             <p class="text-red-800 dark:text-red-300 font-medium">⚠️ Warning</p>
             <p class="text-red-700 dark:text-red-400 text-sm mt-1">
               Sailor "{{ sailor2.forename }} {{ sailor2.surname }}" (ID: {{ sailor2.person_id }}) will be permanently deleted.
               This action cannot be undone.
+            </p>
+          </div>
+
+          <div v-if="mergeMode === 'keep'" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4 mb-6">
+            <p class="text-blue-800 dark:text-blue-300 font-medium">ℹ️ Note</p>
+            <p class="text-blue-700 dark:text-blue-400 text-sm mt-1">
+              Both sailors will be kept in the database. The secondary sailor "{{ sailor2.forename }} {{ sailor2.surname }}" (ID: {{ sailor2.person_id }}) 
+              will retain its ship assignments after the merge.
             </p>
           </div>
 
@@ -292,9 +330,12 @@
             <button
               @click="executeMerge"
               :disabled="merging"
-              class="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50"
+              :class="mergeMode === 'remove' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'"
+              class="px-4 py-2 text-white rounded-md disabled:opacity-50"
             >
-              {{ merging ? 'Merging...' : 'Confirm Merge' }}
+              <span v-if="merging">Merging...</span>
+              <span v-else-if="mergeMode === 'remove'">Confirm Merge & Remove</span>
+              <span v-else>Confirm Merge & Keep</span>
             </button>
           </div>
         </div>
@@ -303,7 +344,8 @@
 
     <!-- Success Message -->
     <div v-if="mergeSuccess" class="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-md shadow-lg">
-      ✅ Sailors merged successfully!
+      <span v-if="mergeMode === 'remove'">✅ Sailors merged successfully! Secondary sailor removed.</span>
+      <span v-else>✅ Sailors merged successfully! Both sailors kept.</span>
     </div>
   </div>
 </template>
@@ -332,6 +374,7 @@ export default {
     const showPreview = ref(false);
     const merging = ref(false);
     const mergeSuccess = ref(false);
+    const mergeMode = ref('remove'); // 'remove' or 'keep'
     
     // Fields that can be merged
     const mergeableFields = [
@@ -488,14 +531,16 @@ export default {
         console.log('Merging sailors:', {
           primaryId: sailor1.value.person_id,
           secondaryId: sailor2.value.person_id,
-          mergedData
+          mergedData,
+          deleteSecondary: mergeMode.value === 'remove'
         });
         
         // Call merge API
         const result = await window.electronAPI.mergeSailors(
           sailor1.value.person_id,
           sailor2.value.person_id,
-          mergedData
+          mergedData,
+          mergeMode.value === 'remove'
         );
         
         console.log('Merge result:', result);
@@ -544,7 +589,8 @@ export default {
       formatDate,
       executeMerge,
       merging,
-      mergeSuccess
+      mergeSuccess,
+      mergeMode
     };
   }
 };
