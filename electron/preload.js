@@ -71,7 +71,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('open-external', url);
   },
   // Merge sailors
-  mergeSailors: (primaryId, secondaryId, mergedData) => {
-    return ipcRenderer.invoke('merge-sailors', primaryId, secondaryId, mergedData);
+  mergeSailors: (primaryId, secondaryId, mergedData, deleteSecondary) => {
+    return ipcRenderer.invoke('merge-sailors', primaryId, secondaryId, mergedData, deleteSecondary);
+  },
+  // Recent changes
+  getRecentChanges: (limit) => {
+    return ipcRenderer.invoke('get-recent-changes', limit);
   }
 });

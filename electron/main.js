@@ -105,6 +105,12 @@ function setupIpcHandlers() {
     try {
       console.log('Starting merge:', { primaryId, secondaryId, mergedData, deleteSecondary });
       
+      // Get secondary sailor name BEFORE transaction for change tracking
+      const secondarySailor = await db.get('SELECT forename, surname FROM person WHERE person_id = ?', [secondaryId]);
+      const secondaryName = secondarySailor 
+        ? `${secondarySailor.forename || ''} ${secondarySailor.surname || ''}`.trim() 
+        : 'Unknown';
+      
       // Begin transaction
       await db.run('BEGIN TRANSACTION');
 
@@ -145,6 +151,17 @@ function setupIpcHandlers() {
       // Commit transaction
       await db.run('COMMIT');
       console.log('Merge completed successfully');
+
+      // Track the merge
+      const primaryName = mergedData.forename && mergedData.surname 
+        ? `${mergedData.forename} ${mergedData.surname}` 
+        : 'Unknown';
+      
+      await logChange('merge', 'Mariner', primaryId, primaryName, {
+        primary: primaryName,
+        secondary: secondaryName,
+        keptSecondary: !deleteSecondary
+      });
 
       return { success: true, keptSecondary: !deleteSecondary };
     } catch (error) {
@@ -356,6 +373,9 @@ function setupIpcHandlers() {
         throw new Error('Invalid mariner data: person_id is required');
       }
 
+      // Get the old mariner data for change tracking
+      const oldMariner = await db.get('SELECT * FROM person WHERE person_id = ?', [mariner.person_id]);
+
       // Create the SQL update statement dynamically from the mariner object
       const fields = Object.keys(mariner)
         .filter(field => field !== 'person_id') // Don't update the ID
@@ -372,6 +392,24 @@ function setupIpcHandlers() {
       
       // Execute the update
       await db.run(sql, values);
+      
+      // Track changes
+      if (oldMariner) {
+        const changes = {};
+        Object.keys(mariner).forEach(field => {
+          if (field !== 'person_id' && oldMariner[field] !== mariner[field]) {
+            changes[field] = {
+              old: oldMariner[field],
+              new: mariner[field]
+            };
+          }
+        });
+        
+        if (Object.keys(changes).length > 0) {
+          const entityName = `${mariner.forename || oldMariner.forename || ''} ${mariner.surname || oldMariner.surname || ''}`;
+          await logChange('edit', 'Mariner', mariner.person_id, entityName.trim(), changes);
+        }
+      }
       
       // Return the updated mariner
       return mariner;
@@ -473,6 +511,10 @@ function setupIpcHandlers() {
       // Get the newly created mariner with the inserted ID (won't be deleted)
       const newMariner = await db.get('SELECT * FROM person WHERE person_id = ?', [result.lastID]);
       
+      // Track the creation
+      const entityName = `${newMariner.forename || ''} ${newMariner.surname || ''}`;
+      await logChange('create', 'Mariner', newMariner.person_id, entityName.trim());
+      
       return newMariner;
     } catch (error) {
       console.error('Error creating mariner:', error);
@@ -487,11 +529,20 @@ function setupIpcHandlers() {
         throw new Error('Invalid mariner ID: ID is required');
       }
 
+      // Get mariner info before deleting for change tracking
+      const mariner = await db.get('SELECT forename, surname FROM person WHERE person_id = ?', [id]);
+
       // Soft delete: set deleted_at timestamp instead of actually deleting
       const result = await db.run(
         'UPDATE person SET deleted_at = CURRENT_TIMESTAMP WHERE person_id = ?',
         [id]
       );
+      
+      // Track the deletion
+      if (mariner) {
+        const entityName = `${mariner.forename || ''} ${mariner.surname || ''}`;
+        await logChange('delete', 'Mariner', id, entityName.trim());
+      }
       
       return { 
         success: true, 
@@ -1046,6 +1097,36 @@ app.whenReady().then(async () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
+
+  // Helper function to log changes
+  async function logChange(changeType, entityType, entityId, entityName, changes = null) {
+    try {
+      const changesJson = changes ? JSON.stringify(changes) : null;
+      await db.run(
+        `INSERT INTO change_history (change_type, entity_type, entity_id, entity_name, changes_json)
+         VALUES (?, ?, ?, ?, ?)`,
+        [changeType, entityType, entityId, entityName, changesJson]
+      );
+    } catch (error) {
+      console.error('Error logging change:', error);
+    }
+  }
+
+  // Get recent changes
+  ipcMain.handle('get-recent-changes', async (event, limit = 100) => {
+    try {
+      const changes = await db.all(
+        `SELECT * FROM change_history 
+         ORDER BY created_at DESC 
+         LIMIT ?`,
+        [limit]
+      );
+      return changes;
+    } catch (error) {
+      console.error('Error getting recent changes:', error);
+      return [];
+    }
+  });
 
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();
