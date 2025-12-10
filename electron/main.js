@@ -173,7 +173,8 @@ function setupIpcHandlers() {
           query = `
             SELECT COUNT(*) as count 
             FROM person
-            WHERE LOWER(forename || ' ' || surname) LIKE ?
+            WHERE deleted_at IS NULL
+              AND (LOWER(forename || ' ' || surname) LIKE ?
                OR LOWER(surname) LIKE ? 
                OR LOWER(forename) LIKE ?
                OR LOWER(alias1surname) LIKE ?
@@ -186,7 +187,7 @@ function setupIpcHandlers() {
                OR LOWER(where1) LIKE ?
                OR LOWER(shiplist) LIKE ?
                OR year_of_birth = ?
-               OR year_of_death = ?
+               OR year_of_death = ?)
           `;
           params = [...Array(12).fill(searchLower), searchTerm, searchTerm];
         } else {
@@ -194,7 +195,8 @@ function setupIpcHandlers() {
           query = `
             SELECT COUNT(*) as count 
             FROM person
-            WHERE LOWER(forename || ' ' || surname) LIKE ?
+            WHERE deleted_at IS NULL
+              AND (LOWER(forename || ' ' || surname) LIKE ?
                OR LOWER(surname) LIKE ? 
                OR LOWER(forename) LIKE ?
                OR LOWER(alias1surname) LIKE ?
@@ -207,7 +209,7 @@ function setupIpcHandlers() {
                OR LOWER(where1) LIKE ?
                OR LOWER(shiplist) LIKE ?
                OR CAST(year_of_birth AS TEXT) LIKE ?
-               OR CAST(year_of_death AS TEXT) LIKE ?
+               OR CAST(year_of_death AS TEXT) LIKE ?)
           `;
           params = [...Array(14).fill(searchLower)];
         }
@@ -215,7 +217,7 @@ function setupIpcHandlers() {
         const result = await db.get(query, params);
         return result.count;
       } else {
-        const result = await db.get('SELECT COUNT(*) as count FROM person');
+        const result = await db.get('SELECT COUNT(*) as count FROM person WHERE deleted_at IS NULL');
         return result.count;
       }
     } catch (error) {
@@ -237,7 +239,8 @@ function setupIpcHandlers() {
         if (isYearSearch) {
           query = `
             SELECT * FROM person
-            WHERE LOWER(forename || ' ' || surname) LIKE ?
+            WHERE deleted_at IS NULL
+              AND (LOWER(forename || ' ' || surname) LIKE ?
                OR LOWER(surname) LIKE ? 
                OR LOWER(forename) LIKE ?
                OR LOWER(alias1surname) LIKE ?
@@ -250,14 +253,15 @@ function setupIpcHandlers() {
                OR LOWER(where1) LIKE ?
                OR LOWER(shiplist) LIKE ?
                OR year_of_birth = ?
-               OR year_of_death = ?
+               OR year_of_death = ?)
             ORDER BY surname, forename LIMIT ? OFFSET ?
           `;
           params = [...Array(12).fill(searchLower), searchTerm, searchTerm, limit, offset];
         } else {
           query = `
             SELECT * FROM person
-            WHERE LOWER(forename || ' ' || surname) LIKE ?
+            WHERE deleted_at IS NULL
+              AND (LOWER(forename || ' ' || surname) LIKE ?
                OR LOWER(surname) LIKE ? 
                OR LOWER(forename) LIKE ?
                OR LOWER(alias1surname) LIKE ?
@@ -270,13 +274,13 @@ function setupIpcHandlers() {
                OR LOWER(where1) LIKE ?
                OR LOWER(shiplist) LIKE ?
                OR CAST(year_of_birth AS TEXT) LIKE ?
-               OR CAST(year_of_death AS TEXT) LIKE ?
+               OR CAST(year_of_death AS TEXT) LIKE ?)
             ORDER BY surname, forename LIMIT ? OFFSET ?
           `;
           params = [...Array(14).fill(searchLower), limit, offset];
         }
       } else {
-        query = 'SELECT * FROM person ORDER BY surname, forename LIMIT ? OFFSET ?';
+        query = 'SELECT * FROM person WHERE deleted_at IS NULL ORDER BY surname, forename LIMIT ? OFFSET ?';
         params = [limit, offset];
       }
       
@@ -291,7 +295,8 @@ function setupIpcHandlers() {
         if (isYearSearch) {
           countQuery = `
             SELECT COUNT(*) as total FROM person
-            WHERE LOWER(forename || ' ' || surname) LIKE ?
+            WHERE deleted_at IS NULL
+              AND (LOWER(forename || ' ' || surname) LIKE ?
                OR LOWER(surname) LIKE ? 
                OR LOWER(forename) LIKE ?
                OR LOWER(alias1surname) LIKE ?
@@ -304,13 +309,14 @@ function setupIpcHandlers() {
                OR LOWER(where1) LIKE ?
                OR LOWER(shiplist) LIKE ?
                OR year_of_birth = ?
-               OR year_of_death = ?
+               OR year_of_death = ?)
           `;
           countParams = [...Array(12).fill(searchLower), searchTerm, searchTerm];
         } else {
           countQuery = `
             SELECT COUNT(*) as total FROM person
-            WHERE LOWER(forename || ' ' || surname) LIKE ?
+            WHERE deleted_at IS NULL
+              AND (LOWER(forename || ' ' || surname) LIKE ?
                OR LOWER(surname) LIKE ? 
                OR LOWER(forename) LIKE ?
                OR LOWER(alias1surname) LIKE ?
@@ -323,12 +329,12 @@ function setupIpcHandlers() {
                OR LOWER(where1) LIKE ?
                OR LOWER(shiplist) LIKE ?
                OR CAST(year_of_birth AS TEXT) LIKE ?
-               OR CAST(year_of_death AS TEXT) LIKE ?
+               OR CAST(year_of_death AS TEXT) LIKE ?)
           `;
           countParams = [...Array(14).fill(searchLower)];
         }
       } else {
-        countQuery = 'SELECT COUNT(*) as total FROM person';
+        countQuery = 'SELECT COUNT(*) as total FROM person WHERE deleted_at IS NULL';
         countParams = [];
       }
       
@@ -378,7 +384,7 @@ function setupIpcHandlers() {
   // Add this handler for getting a mariner by ID
   ipcMain.handle('get-mariner-by-id', async (event, id) => {
     try {
-      // Get the basic mariner information
+      // Get the basic mariner information (include soft-deleted for direct access)
       const query = 'SELECT * FROM person WHERE person_id = ?';
       const mariner = await db.get(query, [id]);
       
@@ -432,7 +438,7 @@ function setupIpcHandlers() {
   // Simple debug handler to test database connectivity
   ipcMain.handle('debug-test-db', async (event) => {
     try {
-      const result = await db.get('SELECT COUNT(*) as count FROM person');
+      const result = await db.get('SELECT COUNT(*) as count FROM person WHERE deleted_at IS NULL');
       return result;
     } catch (error) {
       console.error('Database connectivity test failed:', error);
@@ -464,7 +470,7 @@ function setupIpcHandlers() {
       // Execute the insert
       const result = await db.run(sql, values);
       
-      // Get the newly created mariner with the inserted ID
+      // Get the newly created mariner with the inserted ID (won't be deleted)
       const newMariner = await db.get('SELECT * FROM person WHERE person_id = ?', [result.lastID]);
       
       return newMariner;
@@ -481,29 +487,17 @@ function setupIpcHandlers() {
         throw new Error('Invalid mariner ID: ID is required');
       }
 
-      // Start a transaction to ensure data consistency
-      await db.run('BEGIN TRANSACTION');
+      // Soft delete: set deleted_at timestamp instead of actually deleting
+      const result = await db.run(
+        'UPDATE person SET deleted_at = CURRENT_TIMESTAMP WHERE person_id = ?',
+        [id]
+      );
       
-      try {
-        // First delete all ship assignments for this mariner
-        await db.run('DELETE FROM person_ship WHERE person_id = ?', [id]);
-        
-        // Then delete the mariner
-        const result = await db.run('DELETE FROM person WHERE person_id = ?', [id]);
-        
-        // Commit the transaction
-        await db.run('COMMIT');
-        
-        return { 
-          success: true, 
-          deletedCount: result.changes,
-          id 
-        };
-      } catch (error) {
-        // Rollback in case of error
-        await db.run('ROLLBACK');
-        throw error;
-      }
+      return { 
+        success: true, 
+        deletedCount: result.changes,
+        id 
+      };
     } catch (error) {
       console.error('Error deleting mariner:', error);
       throw error;
