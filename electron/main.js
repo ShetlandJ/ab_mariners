@@ -127,7 +127,7 @@ function createWindow() {
     
     // Open DevTools in production to debug (TEMPORARY - remove later)
     // TODO: Comment this out before sending to client!
-    mainWindow.webContents.openDevTools();
+    // mainWindow.webContents.openDevTools();
     
     // Send database diagnostics to renderer console
     mainWindow.webContents.on('did-finish-load', async () => {
