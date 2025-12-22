@@ -112,10 +112,6 @@
       "differentialPackage": false,
       "runAfterFinish": true,
       "include": "build/installer.nsh",
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "installerHeader": "build/installerHeader.bmp",
-      "installerSidebar": "build/installerSidebar.bmp",
       "uninstallDisplayName": "Alan Mariner Database",
       "guid": "a5e8f5c0-9b3e-4d2a-8f1a-6c7b8d9e0f1a"
     }
