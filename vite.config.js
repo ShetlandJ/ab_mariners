@@ -4,7 +4,7 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [vue()],
-  base: '/',
+  base: './', // Use relative paths for Electron
   build: {
     outDir: 'dist',
     emptyOutDir: true,

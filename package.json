@@ -12,7 +12,12 @@
     "postinstall": "electron-rebuild -f -w better-sqlite3",
     "seed": "electron src/scripts/seed.js",
     "fresh": "yarn install && yarn dev",
-    "migrate": "node scripts/run-migrations.js"
+    "migrate": "node scripts/run-migrations.js",
+    "build:win": "npm run build && electron-builder --win --x64",
+    "build:win-portable": "npm run build && electron-builder --win portable",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:linux": "npm run build && electron-builder --linux",
+    "build:all": "npm run build && electron-builder -mwl"
   },
   "dependencies": {
     "@electron/remote": "^2.0.10",
@@ -33,6 +38,7 @@
     "concurrently": "^8.0.1",
     "cross-env": "^7.0.3",
     "electron": "^25.3.1",
+    "electron-builder": "^26.0.12",
     "electron-devtools-installer": "^3.2.0",
     "electron-rebuild": "^3.2.9",
     "postcss": "^8.4.27",
@@ -41,5 +47,77 @@
     "vite": "^4.4.7",
     "vite-plugin-electron": "^0.12.0",
     "wait-on": "^7.0.1"
+  },
+  "build": {
+    "appId": "com.alanmariner.app",
+    "productName": "Alan Mariner Database",
+    "directories": {
+      "output": "dist-installer"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "electron/**/*",
+      "db/**/*",
+      "src/**/*",
+      "scripts/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/sqlite3/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "db",
+        "to": "db",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "afterPack": "./afterPack.js",
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker",
+      "verifyUpdateCodeSignature": false,
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.utilities"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Utility"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "allowElevation": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false,
+      "differentialPackage": false,
+      "runAfterFinish": true,
+      "include": "build/installer.nsh",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeader": "build/installerHeader.bmp",
+      "installerSidebar": "build/installerSidebar.bmp",
+      "uninstallDisplayName": "Alan Mariner Database",
+      "guid": "a5e8f5c0-9b3e-4d2a-8f1a-6c7b8d9e0f1a"
+    }
   }
 }

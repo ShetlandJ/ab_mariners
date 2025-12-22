@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
+const fs = require('fs');
 const { enableHMR } = require('./dev-config');
 const { runMigrations } = require('../src/migrations/migrationRunner');
 require('@electron/remote/main').initialize();
@@ -16,9 +17,42 @@ async function initDatabase() {
       await db.close();
     }
     
+    // Use userData directory for database (persists across updates)
+    const userDataPath = app.getPath('userData');
+    const dbPath = path.join(userDataPath, 'database.sqlite');
+    
+    console.log('Database path:', dbPath);
+    
+    // Check if database exists in user data folder
+    const dbExists = fs.existsSync(dbPath);
+    
+    if (!dbExists) {
+      // First time running - copy the bundled database template
+      // In production, extraResources are in process.resourcesPath
+      const isDev = process.env.NODE_ENV === 'development';
+      let templateDbPath;
+      
+      if (isDev) {
+        templateDbPath = path.join(__dirname, '../db/database.sqlite');
+      } else {
+        // In production, db is in extraResources
+        templateDbPath = path.join(process.resourcesPath, 'db', 'database.sqlite');
+      }
+      
+      console.log('Looking for template database at:', templateDbPath);
+      
+      if (fs.existsSync(templateDbPath)) {
+        console.log('First run - copying database template...');
+        fs.copyFileSync(templateDbPath, dbPath);
+      } else {
+        console.error('Template database not found at:', templateDbPath);
+        console.log('Creating new empty database');
+      }
+    }
+    
     // Open the database with better configuration
     db = await open({
-      filename: path.join(__dirname, '../db/database.sqlite'),
+      filename: dbPath,
       driver: sqlite3.Database
     });
     
@@ -30,14 +64,26 @@ async function initDatabase() {
     
     console.log('Database connected successfully');
     
-    // Run migrations automatically
-    console.log('Checking for pending migrations...');
+    // Test query to verify data exists
     try {
-      await runMigrations(db);
+      const testCount = await db.get('SELECT COUNT(*) as count FROM person WHERE deleted_at IS NULL');
+      console.log('Database test - Total mariners:', testCount.count);
+      
+      const testMariner = await db.get('SELECT * FROM person WHERE deleted_at IS NULL LIMIT 1');
+      console.log('Database test - Sample mariner:', testMariner);
     } catch (error) {
-      console.error('Migration error:', error);
-      // Don't throw - allow app to continue even if migrations fail
+      console.error('Database test query failed:', error);
     }
+    
+    // Skip migrations - database is already in the correct state
+    // Run migrations automatically (DISABLED - database already migrated)
+    // console.log('Checking for pending migrations...');
+    // try {
+    //   await runMigrations(db);
+    // } catch (error) {
+    //   console.error('Migration error:', error);
+    //   // Don't throw - allow app to continue even if migrations fail
+    // }
   } catch (error) {
     console.error('Database connection error:', error);
   }
@@ -71,10 +117,60 @@ function createWindow() {
     // Open DevTools in development
     mainWindow.webContents.openDevTools();
   } else {
+    // In production, dist folder is at the app root
     const indexPath = path.join(__dirname, '../dist/index.html');
     console.log('Loading production file:', indexPath);
-    mainWindow.loadFile(indexPath);
+    console.log('File exists:', fs.existsSync(indexPath));
+    mainWindow.loadFile(indexPath).catch(err => {
+      console.error('Failed to load index.html:', err);
+    });
+    
+    // Open DevTools in production to debug (TEMPORARY - remove later)
+    // TODO: Comment this out before sending to client!
+    mainWindow.webContents.openDevTools();
+    
+    // Send database diagnostics to renderer console
+    mainWindow.webContents.on('did-finish-load', async () => {
+      const userDataPath = app.getPath('userData');
+      const dbPath = path.join(userDataPath, 'database.sqlite');
+      const templatePath = path.join(process.resourcesPath, 'db', 'database.sqlite');
+      const dbExists = fs.existsSync(dbPath);
+      const templateExists = fs.existsSync(templatePath);
+
+      let marinerCount = 0;
+      let sampleMariner = null;
+      if (db) {
+        try {
+          const countResult = await db.get('SELECT COUNT(*) as count FROM person WHERE deleted_at IS NULL');
+          marinerCount = countResult ? countResult.count : 0;
+          sampleMariner = await db.get('SELECT person_id, forename, surname FROM person WHERE deleted_at IS NULL LIMIT 1');
+        } catch (e) {
+          console.error('Query error:', e);
+        }
+      }
+
+      mainWindow.webContents.executeJavaScript(`
+        console.log('=== DATABASE DIAGNOSTICS ===');
+        console.log('Database path:', '${dbPath.replace(/\\/g, '\\\\')}');
+        console.log('Database exists:', ${dbExists});
+        console.log('Template path:', '${templatePath.replace(/\\/g, '\\\\')}');
+        console.log('Template exists:', ${templateExists});
+        console.log('Database connected:', ${!!db});
+        console.log('Mariner count:', ${marinerCount});
+        console.log('Sample mariner:', ${JSON.stringify(sampleMariner)});
+        console.log('Window location:', window.location.href);
+      `);
+    });
   }
+  
+  // Log any errors during page load
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    console.error('Failed to load page:', errorCode, errorDescription);
+  });
+  
+  mainWindow.webContents.on('crashed', () => {
+    console.error('Renderer process crashed');
+  });
   
   // Log when the page has finished loading
   mainWindow.webContents.on('did-finish-load', () => {

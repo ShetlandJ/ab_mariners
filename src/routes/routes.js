@@ -1,4 +1,4 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHashHistory } from 'vue-router';
 import MarinersView from '../components/MarinersView.vue';
 import ShipsView from '../components/ShipsView.vue';
 import SearchView from '../components/SearchView.vue';
@@ -51,7 +51,7 @@ const routes = [
 ];
 
 const router = createRouter({
-  history: createWebHistory('/'),
+  history: createWebHashHistory(),
   routes
 });
 

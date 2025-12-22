@@ -11,8 +11,18 @@ yarn-error.log*
 
 # Build outputs
 dist/
-build/
+dist-electron/
+dist-installer/
 out/
+
+# Build resources (keep these - needed for builds)
+# build/ - DO NOT IGNORE - contains installer.nsh and icons
+build/config.gypi
+build/node_gyp_bins/
+build/*.o
+build/*.node
+build/Release/
+build/Debug/
 
 # IDE and editor files
 .idea/
@@ -29,4 +39,11 @@ logs/
 # Testing
 coverage/
 
-db/*
+# Database - keep the template, ignore temp/backup files
+# db/database.sqlite - KEEP THIS - needed for builds!
+db/*.db-shm
+db/*.db-wal
+db/*.lock
+db/temp-*
+db/*.backup-*
+db/.DS_Store
