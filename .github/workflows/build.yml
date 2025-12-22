@@ -24,6 +24,8 @@ jobs:
 
       - name: Build Windows installer
         run: yarn build:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
@@ -31,25 +33,21 @@ jobs:
           name: windows-installer
           path: dist-installer/*.exe
 
-  build-mac:
-    runs-on: macos-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: yarn install
-
-      - name: Build Mac installer
-        run: yarn build:mac
-
-      - name: Upload Mac installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: mac-installer
-          path: dist-installer/*.dmg
+  # Mac build disabled - only need Windows
+  # build-mac:
+  #   runs-on: macos-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '20'
+  #     - name: Install dependencies
+  #       run: yarn install
+  #     - name: Build Mac installer
+  #       run: yarn build:mac
+  #     - name: Upload Mac installer
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: mac-installer
+  #         path: dist-installer/*.dmg
