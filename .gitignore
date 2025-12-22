@@ -43,6 +43,8 @@ coverage/
 # db/database.sqlite - KEEP THIS - needed for builds!
 db/*.db-shm
 db/*.db-wal
+db/*.sqlite-shm
+db/*.sqlite-wal
 db/*.lock
 db/temp-*
 db/*.backup-*
