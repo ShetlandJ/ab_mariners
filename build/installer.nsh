@@ -27,6 +27,12 @@
   ; Clean up any stale lock files
   Delete "$APPDATA\Alan Mariner Database\*.lock"
   Delete "$LOCALAPPDATA\Alan Mariner Database\*.lock"
+
+  ; Remove old database to force fresh copy from template
+  ; This ensures users get the latest database with data
+  Delete "$APPDATA\Alan Mariner Database\database.sqlite"
+  Delete "$APPDATA\Alan Mariner Database\database.sqlite-wal"
+  Delete "$APPDATA\Alan Mariner Database\database.sqlite-shm"
 !macroend
 
 !macro customInstall
