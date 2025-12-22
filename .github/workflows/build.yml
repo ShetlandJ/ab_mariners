@@ -13,6 +13,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Verify database file
+        run: |
+          echo "Checking database file..."
+          dir db
+          echo "Database file size:"
+          powershell -Command "(Get-Item db\database.sqlite).Length"
+        shell: cmd
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
