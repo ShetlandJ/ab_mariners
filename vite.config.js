@@ -9,7 +9,7 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
-      external: ['better-sqlite3', 'electron']
+      external: ['sqlite3', 'sqlite', 'electron']
     }
   },
   server: {
@@ -18,7 +18,7 @@ export default defineConfig({
     historyApiFallback: true
   },
   optimizeDeps: {
-    exclude: ['better-sqlite3', 'electron']
+    exclude: ['sqlite3', 'sqlite', 'electron']
   },
   css: {
     postcss: {

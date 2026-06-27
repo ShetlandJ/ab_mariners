@@ -58,15 +58,6 @@ const database = {
     return window.electronAPI.database.updateShipAssignment(assignmentId, assignment);
   },
   
-  // Debug method
-  async debugGetShipAssignments(personId) {
-    return window.electronAPI.database.debugGetShipAssignments(personId);
-  },
-  
-  async debugTestDb() {
-    return window.electronAPI.database.debugTestDb();
-  },
-  
   async searchShips(searchTerm) {
     return window.electronAPI.database.getShipsPaginated(1, 10, searchTerm);
   },

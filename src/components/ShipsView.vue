@@ -34,7 +34,7 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
-          <tr v-for="ship in ships.ships" :key="ship.ship_id" class="hover:bg-gray-100 dark:hover:bg-gray-700">
+          <tr v-for="ship in ships.ships" :key="ship.shipID" class="hover:bg-gray-100 dark:hover:bg-gray-700">
             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{{ ship.name || '-' }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ ship.designation || '-' }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-center text-sm">
@@ -90,6 +90,7 @@
 
 <script>
 import { ref, onMounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { usePagination } from '../composables/usePagination';
 import database from '../services/database';
 import EditShipModal from './EditShipModal.vue';
@@ -108,14 +109,24 @@ export default {
     const searchTimeout = ref(null);
     const showEditModal = ref(false);
     const currentShip = ref({});
-    
+    const route = useRoute();
+
+    // Incrementing token so a slower earlier request can't overwrite a newer one.
+    let loadToken = 0;
     async function loadShips() {
-      totalItems.value = await database.getShipsCount(searchTerm.value);
-      ships.value = await database.getShipsPaginated(
-        currentPage.value, 
-        ITEMS_PER_PAGE,
-        searchTerm.value
-      );
+      const token = ++loadToken;
+      try {
+        const [count, page] = await Promise.all([
+          database.getShipsCount(searchTerm.value),
+          database.getShipsPaginated(currentPage.value, ITEMS_PER_PAGE, searchTerm.value)
+        ]);
+        if (token !== loadToken) return; // a newer load superseded this one
+        totalItems.value = count;
+        ships.value = page;
+      } catch (error) {
+        if (token !== loadToken) return;
+        console.error('Error loading ships:', error);
+      }
     }
 
     function handleSearch() {
@@ -139,7 +150,18 @@ export default {
       prevPage
     } = usePagination(totalItems, ITEMS_PER_PAGE);
 
-    onMounted(loadShips);
+    // Restore search term / page from the URL (e.g. from the global quick-search).
+    onMounted(() => {
+      if (route.query.search) {
+        searchTerm.value = String(route.query.search);
+      }
+      const page = parseInt(route.query.page, 10);
+      if (!isNaN(page) && page > 1) {
+        currentPage.value = page; // watch(currentPage) below triggers the load
+      } else {
+        loadShips();
+      }
+    });
 
     // Watch for page changes
     watch(currentPage, loadShips);

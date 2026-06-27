@@ -126,10 +126,10 @@ export default {
       }
     }
 
-    // Helper function to format date
+    // Helper to format a backup timestamp (UK format, with time)
     function formatDate(dateStr) {
       const date = new Date(dateStr);
-      return date.toLocaleString();
+      return date.toLocaleString('en-GB');
     }
 
     // Helper function to format file size

@@ -103,7 +103,7 @@ import { ref, onMounted, watch } from 'vue';
 import { usePagination } from '../composables/usePagination';
 import database from '../services/database';
 import EditMarinerModal from './EditMarinerModal.vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 
 const ITEMS_PER_PAGE = 15;
 
@@ -121,14 +121,25 @@ export default {
     const currentMariner = ref({});
     const isCreatingMariner = ref(false);
     const router = useRouter();
-    
+    const route = useRoute();
+
+    // Incrementing token so a slower earlier request can't overwrite a newer one
+    // (e.g. fast Next/Prev clicks or a debounced search landing mid-flight).
+    let loadToken = 0;
     async function loadMariners() {
-      totalItems.value = await database.getMarinersCount(searchTerm.value);
-      mariners.value = await database.getMarinersPaginated(
-        currentPage.value, 
-        ITEMS_PER_PAGE,
-        searchTerm.value
-      );
+      const token = ++loadToken;
+      try {
+        const [count, page] = await Promise.all([
+          database.getMarinersCount(searchTerm.value),
+          database.getMarinersPaginated(currentPage.value, ITEMS_PER_PAGE, searchTerm.value)
+        ]);
+        if (token !== loadToken) return; // a newer load superseded this one
+        totalItems.value = count;
+        mariners.value = page;
+      } catch (error) {
+        if (token !== loadToken) return;
+        console.error('Error loading mariners:', error);
+      }
     }
 
     function handleSearch() {
@@ -152,7 +163,19 @@ export default {
       prevPage
     } = usePagination(totalItems, ITEMS_PER_PAGE);
 
-    onMounted(loadMariners);
+    // Restore the search term / page from the URL so returning from a mariner's
+    // detail page (Back) lands back on the same filtered list, not all mariners.
+    onMounted(() => {
+      if (route.query.search) {
+        searchTerm.value = String(route.query.search);
+      }
+      const page = parseInt(route.query.page, 10);
+      if (!isNaN(page) && page > 1) {
+        currentPage.value = page; // watch(currentPage) below triggers the load
+      } else {
+        loadMariners();
+      }
+    });
 
     // Watch for page changes
     watch(currentPage, loadMariners);

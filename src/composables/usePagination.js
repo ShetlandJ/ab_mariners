@@ -1,8 +1,9 @@
-import { ref, computed } from 'vue';
+import { ref, computed, isRef } from 'vue';
 
 export function usePagination(totalItems, itemsPerPage = 20) {
     const currentPage = ref(1);
-    const total = ref(totalItems);
+    // Accept either a ref (kept reactive) or a plain number (wrapped once).
+    const total = isRef(totalItems) ? totalItems : ref(totalItems);
 
     const totalPages = computed(() => Math.ceil(total.value / itemsPerPage));
     const hasNextPage = computed(() => currentPage.value < totalPages.value);

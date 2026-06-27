@@ -4,6 +4,13 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Use yarn; do not commit the npm lockfile
+package-lock.json
+
+# Stray empty database that sometimes appears at the repo root (the real
+# seed/template is db/database.sqlite). The working DB lives in userData.
+/database.sqlite
+
 # Environment variables
 .env
 .env.local
