@@ -7,6 +7,11 @@ on:
     branches: [ main ]
   workflow_dispatch: # Allows manual trigger
 
+# The auto version-bump pushes a commit + tag back to main, which needs write
+# access. The default GITHUB_TOKEN is read-only unless we grant it here.
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -36,6 +41,8 @@ jobs:
         run: yarn install --frozen-lockfile
 
       - name: Auto-increment version
+        # Never let a version-bump/push hiccup block the actual installer build.
+        continue-on-error: true
         if: github.event_name == 'push' && !contains(github.event.head_commit.message, '[skip version]')
         run: |
           git config user.name "github-actions[bot]"
