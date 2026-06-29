@@ -77,7 +77,7 @@
             </div>
 
             <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Remittence</label>
+              <label class="block text-sm font-medium mb-1 dark:text-white">Remittance</label>
               <input type="text" v-model="form.remittence" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
             </div>
 
@@ -135,13 +135,29 @@
             </div>
 
             <div class="mb-4">
+              <label class="block text-sm font-medium mb-1 dark:text-white">
+                Allotment paid to
+                <span class="text-xs text-gray-500 dark:text-gray-400 ml-1">(e.g. wife / mother)</span>
+              </label>
+              <input type="text" v-model="form.allotment_payee" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+            </div>
+
+            <div class="mb-4">
               <label class="block text-sm font-medium mb-1 dark:text-white">Effects</label>
               <input type="text" v-model="form.effects" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
             </div>
 
             <div class="mb-4">
-              <label class="block text-sm font-medium mb-1 dark:text-white">Grenpen</label>
+              <label class="block text-sm font-medium mb-1 dark:text-white">Greenwich Pension</label>
               <input type="text" v-model="form.grenpen" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+            </div>
+
+            <div class="col-span-2 mb-4">
+              <label class="block text-sm font-medium mb-1 dark:text-white">
+                Pension
+                <span class="text-xs text-gray-500 dark:text-gray-400 ml-1">(pension record notes)</span>
+              </label>
+              <textarea v-model="form.pension" class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white" rows="3"></textarea>
             </div>
 
             <div class="col-span-2 mb-4">
@@ -157,20 +173,6 @@
             <!-- Ship Assignments -->
             <div class="col-span-2">
               <h3 class="font-semibold text-lg mb-2 mt-4 border-b pb-1 dark:border-gray-700 dark:text-white">Ship Assignments</h3>
-            </div>
-
-            <!-- Debug Info -->
-            <div v-if="!isCreating" class="col-span-2 mb-4">
-              <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md p-2 text-sm">
-                <strong>Debug Info:</strong><br>
-                Person ID: {{ mariner.person_id }}<br>
-                Ship Assignments Array Length: {{ shipAssignments.length }}<br>
-                Has shipAssignments in mariner: {{ mariner.shipAssignments ? 'Yes' : 'No' }}<br>
-                shipAssignments in mariner length: {{ mariner.shipAssignments ? mariner.shipAssignments.length : 'N/A' }}<br>
-                <button @click="testDebugQuery" class="mt-2 px-2 py-1 bg-blue-500 text-white text-xs rounded">
-                  Test Debug Query
-                </button>
-              </div>
             </div>
 
             <!-- Existing Ship Assignments -->
@@ -358,6 +360,7 @@
 <script>
 import { ref, reactive, watchEffect, computed } from 'vue';
 import database from '../services/database';
+import { formatDate } from '../lib/formatDate';
 
 export default {
   name: 'EditMarinerModal',
@@ -390,8 +393,10 @@ export default {
       place_of_birth: '',
       remittence: '',
       allotment: '',
+      allotment_payee: '',
       effects: '',
       grenpen: '',
+      pension: '',
       freetext: '',
       cod: '',
       shiplist: '',
@@ -592,26 +597,7 @@ export default {
       }
     };
 
-    const formatDate = (dateStr) => {
-      if (!dateStr) return '';
-      try {
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return dateStr;
-        return date.toLocaleDateString();
-      } catch (e) {
-        return dateStr;
-      }
-    };
-
-    const testDebugQuery = async () => {
-      try {
-        const result = await database.debugGetShipAssignments(props.mariner.person_id);
-        alert(`Debug query returned ${result.length} assignments.`);
-      } catch (error) {
-        console.error('Debug query error:', error);
-        alert('Debug query failed.');
-      }
-    };
+    // formatDate is imported from ../lib/formatDate (UK dd/mm/yyyy)
 
     // Validation function for external IDs
     const validateExternalId = (fieldName, event) => {
@@ -714,8 +700,7 @@ export default {
       editShipAssignment,
       cancelEdit,
       removeShipAssignment,
-      formatDate,
-      testDebugQuery
+      formatDate
     };
   }
 }

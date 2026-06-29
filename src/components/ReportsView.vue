@@ -211,30 +211,33 @@
           </div>
         </div>
         
-        <!-- Career Paths (Placeholder/Coming Soon) -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow duration-200 border-l-4 border-gray-400 opacity-75">
+        <!-- Career Paths -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 hover:shadow-lg transition-shadow duration-200 border-l-4 border-indigo-500">
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-xl font-semibold dark:text-white">Career Paths</h2>
-            <span class="text-sm text-gray-600 dark:text-gray-400 font-medium bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">Coming Soon</span>
           </div>
-          
+
           <p class="text-gray-600 dark:text-gray-300 mb-4">
-            Analysis of mariner career progressions and ship assignments.
+            View an individual mariner's RN career as a chronological table of ships, ranks and
+            service dates &mdash; ready to print or export to Excel.
           </p>
-          
+
           <div class="flex flex-col items-center justify-center h-60 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-gray-400 dark:text-gray-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-indigo-400 dark:text-indigo-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
-            <p class="text-gray-500 dark:text-gray-400 text-center">This report is under development<br>and will be available soon.</p>
+            <p class="text-gray-500 dark:text-gray-400 text-center">Search a mariner to build their<br>career table.</p>
           </div>
-          
+
           <div class="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end">
-            <button 
-              disabled
-              class="px-4 py-2 bg-gray-400 text-white rounded-md cursor-not-allowed opacity-50 text-sm flex items-center"
+            <button
+              @click="activateReport('career-paths')"
+              class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:hover:bg-indigo-500 text-sm flex items-center"
             >
-              <span>Coming Soon</span>
+              <span>View Full Report</span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
             </button>
           </div>
         </div>
@@ -899,11 +902,91 @@
         </div>
       </div>
 
+      <!-- Career Paths Report (per-mariner RN career table) -->
+      <div v-if="activeReport === 'career-paths'">
+        <div class="flex items-center mb-6">
+          <button
+            @click="activeReport = null"
+            class="flex items-center text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back to Reports
+          </button>
+          <h1 class="text-2xl font-bold dark:text-white">Career Paths</h1>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div class="mb-6">
+            <label for="career-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Search for a mariner:
+            </label>
+            <div class="flex space-x-2">
+              <input
+                id="career-search"
+                v-model="careerSearch"
+                @keyup.enter="searchMarinersForCareer"
+                placeholder="Enter mariner name..."
+                class="w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+              />
+              <button
+                @click="searchMarinersForCareer"
+                class="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 dark:hover:bg-indigo-500"
+              >
+                Search
+              </button>
+            </div>
+          </div>
+
+          <div v-if="isLoadingCareer" class="flex justify-center py-8">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500"></div>
+          </div>
+
+          <!-- Mariner search results -->
+          <div v-if="careerSearchPerformed && !isLoadingCareer && !selectedCareerMariner" class="mb-4">
+            <div v-if="careerSearchResults.length > 0" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div
+                v-for="m in careerSearchResults"
+                :key="m.person_id"
+                @click="selectCareerMariner(m)"
+                class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg border-2 border-transparent hover:border-indigo-500 dark:hover:border-indigo-400 cursor-pointer"
+              >
+                <div class="font-medium text-gray-900 dark:text-white">{{ m.surname }}, {{ m.forename }}</div>
+                <div v-if="m.year_of_birth" class="text-xs text-gray-500 dark:text-gray-400">b. {{ m.year_of_birth }}</div>
+              </div>
+            </div>
+            <div v-else class="text-center py-6 text-gray-500 dark:text-gray-400">
+              No mariners found matching your search term.
+            </div>
+          </div>
+
+          <!-- Selected mariner career -->
+          <div v-if="selectedCareerMariner" class="mt-2">
+            <div class="mb-4 flex items-center justify-between">
+              <h3 class="text-lg font-semibold text-indigo-800 dark:text-indigo-300">
+                {{ selectedCareerMariner.forename }} {{ selectedCareerMariner.surname }}
+              </h3>
+              <button
+                @click="selectedCareerMariner = null"
+                class="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400"
+              >
+                Choose another mariner
+              </button>
+            </div>
+            <CareerTable
+              :rows="careerReportRows"
+              :title="`${selectedCareerMariner.forename} ${selectedCareerMariner.surname} - RN Career`"
+            />
+          </div>
+        </div>
+      </div>
+
       <!-- Age Analysis Report -->
       <div v-if="activeReport === 'age-analysis'">
         <div class="flex items-center mb-6">
-          <button 
-            @click="activeReport = null" 
+          <button
+            @click="activeReport = null"
             class="flex items-center text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1003,9 +1086,12 @@
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import database from '../services/database';
+import { formatDate } from '../lib/formatDate';
+import { buildCareerRows } from '../lib/careerRows';
+import CareerTable from './CareerTable.vue';
 import { getStandardizedPlace } from '../data/birthplaces';
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -1038,7 +1124,8 @@ const ITEMS_PER_PAGE = 15;
 export default {
   name: 'ReportsView',
   components: {
-    VChart
+    VChart,
+    CareerTable
   },
   setup() {
     const router = useRouter();
@@ -1070,34 +1157,41 @@ export default {
     // Track dark mode state through direct DOM observation
     const isDarkModeActive = ref(document.documentElement.classList.contains('dark'));
     
-    // Create a MutationObserver to watch for dark mode class changes
+    // Watch for dark mode class changes and re-theme the charts.
+    let darkModeObserver = null;
     onMounted(() => {
-      // Set up the observer to watch the html element for class changes
-      const observer = new MutationObserver(mutations => {
+      darkModeObserver = new MutationObserver(mutations => {
         mutations.forEach(mutation => {
           if (mutation.attributeName === 'class') {
             const isDark = document.documentElement.classList.contains('dark');
-            
+
             if (isDark !== isDarkModeActive.value) {
               isDarkModeActive.value = isDark;
-              
+
               // Update chart with new theme
               generateChartData();
               generateAgeAnalysisCharts();
               generateMortalityCharts();
-              
+
               // Force chart recreation
               chartRenderKey.value++;
             }
           }
         });
       });
-      
-      // Start observing
-      observer.observe(document.documentElement, { 
-        attributes: true, 
+
+      darkModeObserver.observe(document.documentElement, {
+        attributes: true,
         attributeFilter: ['class']
       });
+    });
+
+    // Disconnect the observer when leaving Reports so it isn't leaked across visits.
+    onUnmounted(() => {
+      if (darkModeObserver) {
+        darkModeObserver.disconnect();
+        darkModeObserver = null;
+      }
     });
 
     // Load all mariners data
@@ -1673,6 +1767,46 @@ export default {
       currentPage.value = 1;
     };
 
+    // --- Career Paths report (per-mariner RN career table) ---
+    const careerSearch = ref('');
+    const careerSearchResults = ref([]);
+    const careerSearchPerformed = ref(false);
+    const isLoadingCareer = ref(false);
+    const selectedCareerMariner = ref(null);
+
+    const careerReportRows = computed(() => buildCareerRows(selectedCareerMariner.value));
+
+    const searchMarinersForCareer = async () => {
+      const term = careerSearch.value.trim();
+      if (!term) return;
+      isLoadingCareer.value = true;
+      selectedCareerMariner.value = null;
+      try {
+        const result = await database.searchMariners(term, 1, 30);
+        careerSearchResults.value = result.mariners || [];
+      } catch (error) {
+        console.error('Error searching mariners for career report:', error);
+        careerSearchResults.value = [];
+      } finally {
+        careerSearchPerformed.value = true;
+        isLoadingCareer.value = false;
+      }
+    };
+
+    const selectCareerMariner = async (mariner) => {
+      isLoadingCareer.value = true;
+      try {
+        // Fetch the full record so shipAssignments are populated
+        const full = await database.getMarinerById(mariner.person_id);
+        selectedCareerMariner.value = full || mariner;
+      } catch (error) {
+        console.error('Error loading mariner for career report:', error);
+        selectedCareerMariner.value = mariner;
+      } finally {
+        isLoadingCareer.value = false;
+      }
+    };
+
     const navigateToMariner = (personId) => {
       router.push(`/mariners/${personId}`);
     };
@@ -2032,16 +2166,7 @@ export default {
     });
     
     // Format date for display
-    const formatDate = (dateStr) => {
-      if (!dateStr) return '';
-      try {
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return dateStr;
-        return date.toLocaleDateString();
-      } catch (e) {
-        return dateStr;
-      }
-    };
+    // formatDate is imported from ../lib/formatDate (UK dd/mm/yyyy)
 
     // Ship Crew Report functionality
     const shipSearch = ref('');
@@ -2190,6 +2315,14 @@ export default {
       activeReport,
       activateReport,
       navigateToMariner,
+      careerSearch,
+      careerSearchResults,
+      careerSearchPerformed,
+      isLoadingCareer,
+      selectedCareerMariner,
+      careerReportRows,
+      searchMarinersForCareer,
+      selectCareerMariner,
       getReportTitle,
       generatePreviewChartOption,
       // Additional stats for extended reports

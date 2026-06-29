@@ -28,11 +28,11 @@
   Delete "$APPDATA\Alan Mariner Database\*.lock"
   Delete "$LOCALAPPDATA\Alan Mariner Database\*.lock"
 
-  ; Remove old database to force fresh copy from template
-  ; This ensures users get the latest database with data
-  Delete "$APPDATA\Alan Mariner Database\database.sqlite"
-  Delete "$APPDATA\Alan Mariner Database\database.sqlite-wal"
-  Delete "$APPDATA\Alan Mariner Database\database.sqlite-shm"
+  ; NOTE: We deliberately do NOT delete the user's database on install/upgrade.
+  ; Users edit their own local dataset and that data must survive updates.
+  ; The bundled db/database.sqlite is only a first-run seed (see electron/main.js
+  ; initDatabase, which copies it only when no database exists). Schema changes
+  ; reach existing users via the in-app migration runner, not by replacing the DB.
 !macroend
 
 !macro customInstall

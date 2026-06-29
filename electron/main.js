@@ -5,10 +5,15 @@ const { open } = require('sqlite');
 const fs = require('fs');
 const { enableHMR } = require('./dev-config');
 const { runMigrations } = require('../src/migrations/migrationRunner');
-require('@electron/remote/main').initialize();
 
 let mainWindow;
 let db;
+
+// The live, user-editable database lives in userData so it persists across updates.
+// The bundled db/database.sqlite is only a first-run seed template.
+function getLiveDbPath() {
+  return path.join(app.getPath('userData'), 'database.sqlite');
+}
 
 async function initDatabase() {
   try {
@@ -16,11 +21,10 @@ async function initDatabase() {
     if (db) {
       await db.close();
     }
-    
+
     // Use userData directory for database (persists across updates)
-    const userDataPath = app.getPath('userData');
-    const dbPath = path.join(userDataPath, 'database.sqlite');
-    
+    const dbPath = getLiveDbPath();
+
     console.log('Database path:', dbPath);
     
     // Check if database exists in user data folder
@@ -63,27 +67,18 @@ async function initDatabase() {
     await db.exec('PRAGMA busy_timeout = 10000;');
     
     console.log('Database connected successfully');
-    
-    // Test query to verify data exists
+
+    // Run pending migrations automatically. This is the ONLY mechanism for
+    // delivering schema changes to an already-installed user, since updates no
+    // longer replace the user's database. Migrations are idempotent and tracked
+    // in the `migrations` ledger table (see src/migrations/migrationRunner.js).
+    console.log('Checking for pending migrations...');
     try {
-      const testCount = await db.get('SELECT COUNT(*) as count FROM person WHERE deleted_at IS NULL');
-      console.log('Database test - Total mariners:', testCount.count);
-      
-      const testMariner = await db.get('SELECT * FROM person WHERE deleted_at IS NULL LIMIT 1');
-      console.log('Database test - Sample mariner:', testMariner);
+      await runMigrations(db);
     } catch (error) {
-      console.error('Database test query failed:', error);
+      console.error('Migration error:', error);
+      // Don't throw - allow app to continue even if migrations fail
     }
-    
-    // Skip migrations - database is already in the correct state
-    // Run migrations automatically (DISABLED - database already migrated)
-    // console.log('Checking for pending migrations...');
-    // try {
-    //   await runMigrations(db);
-    // } catch (error) {
-    //   console.error('Migration error:', error);
-    //   // Don't throw - allow app to continue even if migrations fail
-    // }
   } catch (error) {
     console.error('Database connection error:', error);
   }
@@ -124,45 +119,8 @@ function createWindow() {
     mainWindow.loadFile(indexPath).catch(err => {
       console.error('Failed to load index.html:', err);
     });
-    
-    // Open DevTools in production to debug (TEMPORARY - remove later)
-    // TODO: Comment this out before sending to client!
-    // mainWindow.webContents.openDevTools();
-    
-    // Send database diagnostics to renderer console
-    mainWindow.webContents.on('did-finish-load', async () => {
-      const userDataPath = app.getPath('userData');
-      const dbPath = path.join(userDataPath, 'database.sqlite');
-      const templatePath = path.join(process.resourcesPath, 'db', 'database.sqlite');
-      const dbExists = fs.existsSync(dbPath);
-      const templateExists = fs.existsSync(templatePath);
-
-      let marinerCount = 0;
-      let sampleMariner = null;
-      if (db) {
-        try {
-          const countResult = await db.get('SELECT COUNT(*) as count FROM person WHERE deleted_at IS NULL');
-          marinerCount = countResult ? countResult.count : 0;
-          sampleMariner = await db.get('SELECT person_id, forename, surname FROM person WHERE deleted_at IS NULL LIMIT 1');
-        } catch (e) {
-          console.error('Query error:', e);
-        }
-      }
-
-      mainWindow.webContents.executeJavaScript(`
-        console.log('=== DATABASE DIAGNOSTICS ===');
-        console.log('Database path:', '${dbPath.replace(/\\/g, '\\\\')}');
-        console.log('Database exists:', ${dbExists});
-        console.log('Template path:', '${templatePath.replace(/\\/g, '\\\\')}');
-        console.log('Template exists:', ${templateExists});
-        console.log('Database connected:', ${!!db});
-        console.log('Mariner count:', ${marinerCount});
-        console.log('Sample mariner:', ${JSON.stringify(sampleMariner)});
-        console.log('Window location:', window.location.href);
-      `);
-    });
   }
-  
+
   // Log any errors during page load
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
     console.error('Failed to load page:', errorCode, errorDescription);
@@ -181,6 +139,50 @@ function createWindow() {
   mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
     console.error('Failed to load:', errorCode, errorDescription);
   });
+}
+
+// Columns the free-text mariner search matches against. Add a column here to
+// extend search everywhere (count + paginated) with no duplicated SQL. Includes
+// the financial / pension / notes fields so a man can be found by those records.
+const MARINER_SEARCH_COLUMNS = [
+  "forename || ' ' || surname",
+  'surname',
+  'forename',
+  'alias1surname',
+  'alias1forename',
+  "alias1forename || ' ' || alias1surname",
+  'place_of_birth',
+  'freetext',
+  'cod',
+  'ship1',
+  'where1',
+  'shiplist',
+  'allotment',
+  'allotment_payee',
+  'remittence',
+  'effects',
+  'grenpen',
+  'pension'
+];
+
+// Build the `AND (...)` search fragment and bound params for a mariner search term.
+// Numeric terms of <=4 chars also match birth/death years exactly.
+function buildMarinerSearch(searchTerm) {
+  const like = `%${String(searchTerm).toLowerCase()}%`;
+  const isYearSearch = !isNaN(searchTerm) && String(searchTerm).length <= 4;
+
+  const ors = MARINER_SEARCH_COLUMNS.map(col => `LOWER(${col}) LIKE ?`);
+  const params = MARINER_SEARCH_COLUMNS.map(() => like);
+
+  if (isYearSearch) {
+    ors.push('year_of_birth = ?', 'year_of_death = ?');
+    params.push(searchTerm, searchTerm);
+  } else {
+    ors.push('CAST(year_of_birth AS TEXT) LIKE ?', 'CAST(year_of_death AS TEXT) LIKE ?');
+    params.push(like, like);
+  }
+
+  return { clause: `AND (${ors.join(' OR ')})`, params };
 }
 
 // Set up IPC handlers for database operations
@@ -274,60 +276,11 @@ function setupIpcHandlers() {
   ipcMain.handle('get-mariners-count', async (event, searchTerm = '') => {
     try {
       if (searchTerm) {
-        const searchLower = `%${searchTerm.toLowerCase()}%`;
-        // Try to parse the search term as a year if it's a valid number
-        const isYearSearch = !isNaN(searchTerm) && searchTerm.length <= 4;
-        
-        let query;
-        let params;
-        
-        if (isYearSearch) {
-          // If the search term is a potential year, use equality for year fields
-          query = `
-            SELECT COUNT(*) as count 
-            FROM person
-            WHERE deleted_at IS NULL
-              AND (LOWER(forename || ' ' || surname) LIKE ?
-               OR LOWER(surname) LIKE ? 
-               OR LOWER(forename) LIKE ?
-               OR LOWER(alias1surname) LIKE ?
-               OR LOWER(alias1forename) LIKE ?
-               OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
-               OR LOWER(place_of_birth) LIKE ?
-               OR LOWER(freetext) LIKE ?
-               OR LOWER(cod) LIKE ?
-               OR LOWER(ship1) LIKE ?
-               OR LOWER(where1) LIKE ?
-               OR LOWER(shiplist) LIKE ?
-               OR year_of_birth = ?
-               OR year_of_death = ?)
-          `;
-          params = [...Array(12).fill(searchLower), searchTerm, searchTerm];
-        } else {
-          // Regular text search without year matching
-          query = `
-            SELECT COUNT(*) as count 
-            FROM person
-            WHERE deleted_at IS NULL
-              AND (LOWER(forename || ' ' || surname) LIKE ?
-               OR LOWER(surname) LIKE ? 
-               OR LOWER(forename) LIKE ?
-               OR LOWER(alias1surname) LIKE ?
-               OR LOWER(alias1forename) LIKE ?
-               OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
-               OR LOWER(place_of_birth) LIKE ?
-               OR LOWER(freetext) LIKE ?
-               OR LOWER(cod) LIKE ?
-               OR LOWER(ship1) LIKE ?
-               OR LOWER(where1) LIKE ?
-               OR LOWER(shiplist) LIKE ?
-               OR CAST(year_of_birth AS TEXT) LIKE ?
-               OR CAST(year_of_death AS TEXT) LIKE ?)
-          `;
-          params = [...Array(14).fill(searchLower)];
-        }
-        
-        const result = await db.get(query, params);
+        const { clause, params } = buildMarinerSearch(searchTerm);
+        const result = await db.get(
+          `SELECT COUNT(*) as count FROM person WHERE deleted_at IS NULL ${clause}`,
+          params
+        );
         return result.count;
       } else {
         const result = await db.get('SELECT COUNT(*) as count FROM person WHERE deleted_at IS NULL');
@@ -342,117 +295,19 @@ function setupIpcHandlers() {
   ipcMain.handle('get-mariners-paginated', async (event, page, limit, searchTerm = '') => {
     try {
       const offset = (page - 1) * limit;
-      let query, params;
-      
-      if (searchTerm) {
-        const searchLower = `%${searchTerm.toLowerCase()}%`;
-        // Try to parse the search term as a year if it's a valid number
-        const isYearSearch = !isNaN(searchTerm) && searchTerm.length <= 4;
-        
-        if (isYearSearch) {
-          query = `
-            SELECT * FROM person
-            WHERE deleted_at IS NULL
-              AND (LOWER(forename || ' ' || surname) LIKE ?
-               OR LOWER(surname) LIKE ? 
-               OR LOWER(forename) LIKE ?
-               OR LOWER(alias1surname) LIKE ?
-               OR LOWER(alias1forename) LIKE ?
-               OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
-               OR LOWER(place_of_birth) LIKE ?
-               OR LOWER(freetext) LIKE ?
-               OR LOWER(cod) LIKE ?
-               OR LOWER(ship1) LIKE ?
-               OR LOWER(where1) LIKE ?
-               OR LOWER(shiplist) LIKE ?
-               OR year_of_birth = ?
-               OR year_of_death = ?)
-            ORDER BY surname, forename LIMIT ? OFFSET ?
-          `;
-          params = [...Array(12).fill(searchLower), searchTerm, searchTerm, limit, offset];
-        } else {
-          query = `
-            SELECT * FROM person
-            WHERE deleted_at IS NULL
-              AND (LOWER(forename || ' ' || surname) LIKE ?
-               OR LOWER(surname) LIKE ? 
-               OR LOWER(forename) LIKE ?
-               OR LOWER(alias1surname) LIKE ?
-               OR LOWER(alias1forename) LIKE ?
-               OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
-               OR LOWER(place_of_birth) LIKE ?
-               OR LOWER(freetext) LIKE ?
-               OR LOWER(cod) LIKE ?
-               OR LOWER(ship1) LIKE ?
-               OR LOWER(where1) LIKE ?
-               OR LOWER(shiplist) LIKE ?
-               OR CAST(year_of_birth AS TEXT) LIKE ?
-               OR CAST(year_of_death AS TEXT) LIKE ?)
-            ORDER BY surname, forename LIMIT ? OFFSET ?
-          `;
-          params = [...Array(14).fill(searchLower), limit, offset];
-        }
-      } else {
-        query = 'SELECT * FROM person WHERE deleted_at IS NULL ORDER BY surname, forename LIMIT ? OFFSET ?';
-        params = [limit, offset];
-      }
-      
-      const mariners = await db.all(query, params);
-      
-      // Get total count with same search conditions
-      let countQuery, countParams;
-      if (searchTerm) {
-        const searchLower = `%${searchTerm.toLowerCase()}%`;
-        const isYearSearch = !isNaN(searchTerm) && searchTerm.length <= 4;
-        
-        if (isYearSearch) {
-          countQuery = `
-            SELECT COUNT(*) as total FROM person
-            WHERE deleted_at IS NULL
-              AND (LOWER(forename || ' ' || surname) LIKE ?
-               OR LOWER(surname) LIKE ? 
-               OR LOWER(forename) LIKE ?
-               OR LOWER(alias1surname) LIKE ?
-               OR LOWER(alias1forename) LIKE ?
-               OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
-               OR LOWER(place_of_birth) LIKE ?
-               OR LOWER(freetext) LIKE ?
-               OR LOWER(cod) LIKE ?
-               OR LOWER(ship1) LIKE ?
-               OR LOWER(where1) LIKE ?
-               OR LOWER(shiplist) LIKE ?
-               OR year_of_birth = ?
-               OR year_of_death = ?)
-          `;
-          countParams = [...Array(12).fill(searchLower), searchTerm, searchTerm];
-        } else {
-          countQuery = `
-            SELECT COUNT(*) as total FROM person
-            WHERE deleted_at IS NULL
-              AND (LOWER(forename || ' ' || surname) LIKE ?
-               OR LOWER(surname) LIKE ? 
-               OR LOWER(forename) LIKE ?
-               OR LOWER(alias1surname) LIKE ?
-               OR LOWER(alias1forename) LIKE ?
-               OR LOWER(alias1forename || ' ' || alias1surname) LIKE ?
-               OR LOWER(place_of_birth) LIKE ?
-               OR LOWER(freetext) LIKE ?
-               OR LOWER(cod) LIKE ?
-               OR LOWER(ship1) LIKE ?
-               OR LOWER(where1) LIKE ?
-               OR LOWER(shiplist) LIKE ?
-               OR CAST(year_of_birth AS TEXT) LIKE ?
-               OR CAST(year_of_death AS TEXT) LIKE ?)
-          `;
-          countParams = [...Array(14).fill(searchLower)];
-        }
-      } else {
-        countQuery = 'SELECT COUNT(*) as total FROM person WHERE deleted_at IS NULL';
-        countParams = [];
-      }
-      
-      const countResult = await db.get(countQuery, countParams);
-      
+      const search = searchTerm ? buildMarinerSearch(searchTerm) : { clause: '', params: [] };
+
+      const mariners = await db.all(
+        `SELECT * FROM person WHERE deleted_at IS NULL ${search.clause}
+         ORDER BY surname, forename LIMIT ? OFFSET ?`,
+        [...search.params, limit, offset]
+      );
+
+      const countResult = await db.get(
+        `SELECT COUNT(*) as total FROM person WHERE deleted_at IS NULL ${search.clause}`,
+        search.params
+      );
+
       return {
         mariners,
         total: countResult.total
@@ -551,34 +406,7 @@ function setupIpcHandlers() {
     }
   });
 
-  // Debug handler for testing ship assignments
-  ipcMain.handle('debug-get-ship-assignments', async (event, personId) => {
-    try {
-      const query = `
-        SELECT ps.*, s.name as ship_name, s.designation
-        FROM person_ship ps
-        LEFT JOIN ship s ON ps.ship_id = s.shipID
-        WHERE ps.person_id = ?
-        ORDER BY ps.start_date
-      `;
-      const result = await db.all(query, [personId]);
-      return result;
-    } catch (error) {
-      console.error('Error getting ship assignments:', error);
-      throw error;
-    }
-  });
-
-  // Simple debug handler to test database connectivity
-  ipcMain.handle('debug-test-db', async (event) => {
-    try {
-      const result = await db.get('SELECT COUNT(*) as count FROM person WHERE deleted_at IS NULL');
-      return result;
-    } catch (error) {
-      console.error('Database connectivity test failed:', error);
-      throw error;
-    }
-  });  ipcMain.handle('create-mariner', async (event, mariner) => {
+  ipcMain.handle('create-mariner', async (event, mariner) => {
     try {
       // Create SQL INSERT statement dynamically from the mariner object
       const fields = Object.keys(mariner)
@@ -787,23 +615,24 @@ function setupIpcHandlers() {
 
   ipcMain.handle('update-ship', async (event, ship) => {
     try {
-      if (!ship || !ship.ship_id) {
-        throw new Error('Invalid ship data: ship_id is required');
+      if (!ship || !ship.shipID) {
+        throw new Error('Invalid ship data: shipID is required');
       }
 
-      // Create the SQL update statement dynamically from the ship object
+      // Create the SQL update statement dynamically from the ship object.
+      // The ship primary key column is `shipID` (not `ship_id`).
       const fields = Object.keys(ship)
-        .filter(field => field !== 'ship_id') // Don't update the ID
+        .filter(field => field !== 'shipID') // Don't update the ID
         .map(field => `${field} = ?`).join(', ');
-      
+
       const values = Object.keys(ship)
-        .filter(field => field !== 'ship_id')
+        .filter(field => field !== 'shipID')
         .map(field => ship[field]);
-      
+
       // Add the ID to the values array for the WHERE clause
-      values.push(ship.ship_id);
-      
-      const sql = `UPDATE ship SET ${fields} WHERE ship_id = ?`;
+      values.push(ship.shipID);
+
+      const sql = `UPDATE ship SET ${fields} WHERE shipID = ?`;
       
       // Execute the update
       await db.run(sql, values);
@@ -960,9 +789,9 @@ function setupIpcHandlers() {
   // Database backup handlers
   ipcMain.handle('get-database-info', async () => {
     try {
-      // Get the database file path
-      const dbPath = path.join(__dirname, '../db/database.sqlite');
-      
+      // Report on the LIVE user database, not the bundled seed template
+      const dbPath = getLiveDbPath();
+
       // Get the file stats
       const fs = require('fs');
       const stats = fs.statSync(dbPath);
@@ -982,10 +811,10 @@ function setupIpcHandlers() {
     try {
       const fs = require('fs');
       const { dialog } = require('electron');
-      
-      // Get the source database path
-      const dbPath = path.join(__dirname, '../db/database.sqlite');
-      
+
+      // Back up the LIVE user database, not the bundled seed template
+      const dbPath = getLiveDbPath();
+
       // Show save dialog to let user choose where to save the backup
       const result = await dialog.showSaveDialog(mainWindow, {
         title: 'Save Database Backup',
@@ -1002,7 +831,17 @@ function setupIpcHandlers() {
       }
       
       const destPath = result.filePath;
-      
+
+      // Flush the WAL into the main database file so the single-file copy is
+      // complete (the app runs in WAL mode; recent edits may still be in -wal).
+      if (db) {
+        try {
+          await db.exec('PRAGMA wal_checkpoint(TRUNCATE);');
+        } catch (checkpointError) {
+          console.error('WAL checkpoint before backup failed:', checkpointError);
+        }
+      }
+
       // Create the backup
       await fs.promises.copyFile(dbPath, destPath);
       

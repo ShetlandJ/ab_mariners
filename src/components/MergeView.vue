@@ -354,6 +354,7 @@
 import { ref, reactive, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import database from '../services/database';
+import { formatDate as sharedFormatDate } from '../lib/formatDate';
 
 export default {
   name: 'MergeView',
@@ -467,13 +468,13 @@ export default {
     
     function selectAllLeft() {
       mergeableFields.forEach(field => {
-        fieldSelections.value[field.key] = 'left';
+        fieldSelections[field.key] = 'left';
       });
     }
     
     function selectAllRight() {
       mergeableFields.forEach(field => {
-        fieldSelections.value[field.key] = 'right';
+        fieldSelections[field.key] = 'right';
       });
     }
     
@@ -484,10 +485,10 @@ export default {
         
         // If left is empty and right has value, use right
         if ((!leftValue || leftValue === '') && rightValue && rightValue !== '') {
-          fieldSelections.value[field.key] = 'right';
+          fieldSelections[field.key] = 'right';
         } else {
           // Otherwise use left (including when both have values)
-          fieldSelections.value[field.key] = 'left';
+          fieldSelections[field.key] = 'left';
         }
       });
     }
@@ -507,16 +508,8 @@ export default {
       return s1Count + s2Count;
     }
     
-    function formatDate(dateStr) {
-      if (!dateStr) return '?';
-      try {
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return dateStr;
-        return date.toLocaleDateString();
-      } catch (e) {
-        return dateStr;
-      }
-    }
+    // formatDate (UK dd/mm/yyyy); shows '?' when a date is missing.
+    const formatDate = (dateStr) => sharedFormatDate(dateStr, { fallback: '?' });
     
     async function executeMerge() {
       try {

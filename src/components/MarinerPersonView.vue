@@ -372,9 +372,50 @@
       </div>
     </div>
 
+    <!-- RN Career table (chronological) with print / Excel export -->
+    <div v-if="!loading && !error && mariner && mariner.person_id" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mt-6">
+      <CareerTable :rows="careerRows" :title="`${marinerName} - RN Career`" />
+    </div>
+
+    <!-- Financial, pension & notes -->
+    <div v-if="!loading && !error && hasFinancialInfo" class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mt-6">
+      <h2 class="text-xl font-semibold mb-4 dark:text-white">Financial &amp; Other Information</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3">
+        <div v-if="mariner.allotment" class="flex">
+          <span class="w-40 font-medium text-gray-600 dark:text-gray-300">Allotment:</span>
+          <span class="text-gray-900 dark:text-white whitespace-pre-line">{{ mariner.allotment }}</span>
+        </div>
+        <div v-if="mariner.allotment_payee" class="flex">
+          <span class="w-40 font-medium text-gray-600 dark:text-gray-300">Allotment paid to:</span>
+          <span class="text-gray-900 dark:text-white">{{ mariner.allotment_payee }}</span>
+        </div>
+        <div v-if="mariner.remittence" class="flex">
+          <span class="w-40 font-medium text-gray-600 dark:text-gray-300">Remittance:</span>
+          <span class="text-gray-900 dark:text-white whitespace-pre-line">{{ mariner.remittence }}</span>
+        </div>
+        <div v-if="mariner.effects" class="flex">
+          <span class="w-40 font-medium text-gray-600 dark:text-gray-300">Effects / Will:</span>
+          <span class="text-gray-900 dark:text-white whitespace-pre-line">{{ mariner.effects }}</span>
+        </div>
+        <div v-if="mariner.grenpen" class="flex">
+          <span class="w-40 font-medium text-gray-600 dark:text-gray-300">Greenwich Pension:</span>
+          <span class="text-gray-900 dark:text-white whitespace-pre-line">{{ mariner.grenpen }}</span>
+        </div>
+        <div v-if="mariner.pension" class="flex md:col-span-2">
+          <span class="w-40 font-medium text-gray-600 dark:text-gray-300 flex-shrink-0">Pension:</span>
+          <span class="text-gray-900 dark:text-white whitespace-pre-line">{{ mariner.pension }}</span>
+        </div>
+      </div>
+
+      <div v-if="mariner.freetext" class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+        <h3 class="font-medium mb-2 dark:text-white">Notes</h3>
+        <p class="text-gray-700 dark:text-gray-300 whitespace-pre-line">{{ mariner.freetext }}</p>
+      </div>
+    </div>
+
     <div class="mt-6 flex justify-end">
-      <button 
-        @click="deleteMariner" 
+      <button
+        @click="deleteMariner"
         class="btn bg-red-600 hover:bg-red-700 text-white dark:bg-red-700 dark:hover:bg-red-600 dark:text-white"
       >
         Delete Mariner
@@ -403,6 +444,9 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import database from '../services/database';
+import { formatDate } from '../lib/formatDate';
+import { buildCareerRows } from '../lib/careerRows';
+import CareerTable from './CareerTable.vue';
 import EditMarinerModal from './EditMarinerModal.vue';
 import DeleteMarinerModal from './DeleteMarinerModal.vue';
 
@@ -410,7 +454,8 @@ export default {
   name: 'MarinerPersonView',
   components: {
     EditMarinerModal,
-    DeleteMarinerModal
+    DeleteMarinerModal,
+    CareerTable
   },
   setup() {
     const route = useRoute();
@@ -455,9 +500,12 @@ export default {
     });
 
     const hasFinancialInfo = computed(() => {
-      return !!(mariner.value.remittence || mariner.value.allotment || 
-                mariner.value.effects || mariner.value.grenpen);
+      const m = mariner.value;
+      return !!(m.remittence || m.allotment || m.allotment_payee ||
+                m.effects || m.grenpen || m.pension || m.freetext);
     });
+
+    const careerRows = computed(() => buildCareerRows(mariner.value));
 
     const canSaveAssignment = computed(() => {
       if (shipSelectionMethod.value === 'search') {
@@ -466,16 +514,7 @@ export default {
       return newAssignment.value.ship_name && newAssignment.value.rank && newAssignment.value.start_date;
     });
 
-    function formatDate(dateStr) {
-      if (!dateStr) return '';
-      try {
-        const date = new Date(dateStr);
-        if (isNaN(date.getTime())) return dateStr;
-        return date.toLocaleDateString();
-      } catch (e) {
-        return dateStr;
-      }
-    }
+    // formatDate is imported from ../lib/formatDate (UK dd/mm/yyyy)
 
     async function loadMariner() {
       try {
@@ -621,7 +660,7 @@ export default {
           return;
         }
         
-        await database.updateMariner(marinerId.value, { bayanne_id: value });
+        await database.updateMariner({ person_id: marinerId.value, bayanne_id: value });
         mariner.value.bayanne_id = value;
         editingBayanneId.value = false;
       } catch (err) {
@@ -638,7 +677,7 @@ export default {
           return;
         }
         
-        await database.updateMariner(marinerId.value, { sfhs_id: value });
+        await database.updateMariner({ person_id: marinerId.value, sfhs_id: value });
         mariner.value.sfhs_id = value;
         editingSfhsId.value = false;
       } catch (err) {
@@ -679,6 +718,7 @@ export default {
       hasShipAssignments,
       hasShipAssignmentsFromRelation,
       hasFinancialInfo,
+      careerRows,
       formatDate,
       goBack,
       editMariner,
